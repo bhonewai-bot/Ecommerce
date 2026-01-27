@@ -24,6 +24,23 @@ async function request(path, options = {}) {
 
 export const api = {
   getCategories: () => request("/api/categories"),
-  getProducts: () => request("/api/products"),
+  getProducts: (
+    page = 1,
+    pageSize = 10,
+    sortBy = "id",
+    sortOrder = "asc",
+    categoryId = null
+  ) => {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      pageSize: pageSize.toString(),
+      sortBy,
+      sortOrder,
+    });
+    if (categoryId) {
+      params.set("categoryId", categoryId.toString());
+    }
+    return request(`/api/products?${params.toString()}`);
+  },
   getProduct: (id) => request(`/api/products/${id}`),
 };

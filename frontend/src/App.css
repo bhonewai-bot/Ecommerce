@@ -7,7 +7,13 @@
 .main {
   width: min(1200px, 92vw);
   margin: 0 auto;
-  padding: 1.5rem 0 3.5rem;
+  padding: 2.5rem 0 4.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.catalog-page {
   display: flex;
   flex-direction: column;
   gap: 2rem;
@@ -160,6 +166,66 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
+}
+
+.catalog-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sort-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.sort-control select {
+  border-radius: 999px;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--border);
+  background: #fff;
+}
+
+.catalog-meta {
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.catalog-query {
+  color: var(--text-primary);
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  color: var(--text-muted);
+}
+
+.pagination .button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.clear-link {
+  margin-left: 0.5rem;
+  border: none;
+  background: none;
+  color: #0064d2;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.clear-link:hover {
+  text-decoration: underline;
 }
 
 .chip {
