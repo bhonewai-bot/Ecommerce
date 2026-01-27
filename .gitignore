@@ -1,0 +1,21 @@
+# OS
+.DS_Store
+
+# Rider / JetBrains
+.idea/
+
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Node / Vite
+node_modules/
+dist/
+
+# Env files
+.env
+.env.*
