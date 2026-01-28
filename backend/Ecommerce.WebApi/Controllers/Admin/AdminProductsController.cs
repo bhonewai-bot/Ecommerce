@@ -4,15 +4,15 @@ using Ecommerce.WebApi.Dtos;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
-namespace Ecommerce.WebApi.Controllers;
+namespace Ecommerce.WebApi.Controllers.Admin;
 
 [ApiController]
-[Route("api/[controller]")]
-public sealed class ProductsController : ControllerBase
+[Route("api/admin/products")]
+public sealed class AdminProductsController : ControllerBase
 {
     private readonly EcommerceDbContext _db;
 
-    public ProductsController(EcommerceDbContext db)
+    public AdminProductsController(EcommerceDbContext db)
     {
         _db = db;
     }
@@ -22,6 +22,7 @@ public sealed class ProductsController : ControllerBase
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 10,
         [FromQuery] int? categoryId = null,
+        [FromQuery] string? q = null,
         [FromQuery] string sortBy = "id",
         [FromQuery] string sortOrder = "asc",
         CancellationToken cancellationToken = default)
@@ -37,6 +38,14 @@ public sealed class ProductsController : ControllerBase
         if (categoryId.HasValue)
         {
             query = query.Where(p => p.category_id == categoryId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(q))
+        {
+            var term = q.Trim().ToLowerInvariant();
+            query = query.Where(p =>
+                p.name.ToLower().Contains(term) ||
+                (p.description != null && p.description.ToLower().Contains(term)));
         }
 
         var totalCount = await query.CountAsync(cancellationToken);
@@ -106,4 +115,84 @@ public sealed class ProductsController : ControllerBase
         return Ok(item);
     }
 
+    [HttpPost]
+    public async Task<ActionResult<ProductDto>> Create(ProductCreateDto dto, CancellationToken cancellationToken)
+    {
+        var categoryExists = await _db.categories
+            .AnyAsync(c => c.id == dto.CategoryId && !c.delete_flag, cancellationToken);
+
+        if (!categoryExists)
+        {
+            return BadRequest("Category does not exist.");
+        }
+
+        var entity = new product
+        {
+            category_id = dto.CategoryId,
+            name = dto.Name,
+            description = dto.Description,
+            price = dto.Price,
+            image_url = dto.ImageUrl,
+            delete_flag = false
+        };
+
+        _db.products.Add(entity);
+        await _db.SaveChangesAsync(cancellationToken);
+
+        var result = new ProductDto(
+            entity.id,
+            entity.category_id,
+            entity.name,
+            entity.description,
+            entity.price,
+            entity.image_url);
+
+        return CreatedAtAction(nameof(GetById), new { id = entity.id }, result);
+    }
+
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> Update(int id, ProductUpdateDto dto, CancellationToken cancellationToken)
+    {
+        var entity = await _db.products
+            .FirstOrDefaultAsync(p => p.id == id && !p.delete_flag, cancellationToken);
+
+        if (entity is null)
+        {
+            return NotFound();
+        }
+
+        var categoryExists = await _db.categories
+            .AnyAsync(c => c.id == dto.CategoryId && !c.delete_flag, cancellationToken);
+
+        if (!categoryExists)
+        {
+            return BadRequest("Category does not exist.");
+        }
+
+        entity.category_id = dto.CategoryId;
+        entity.name = dto.Name;
+        entity.description = dto.Description;
+        entity.price = dto.Price;
+        entity.image_url = dto.ImageUrl;
+
+        await _db.SaveChangesAsync(cancellationToken);
+        return NoContent();
+    }
+
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
+    {
+        var entity = await _db.products
+            .FirstOrDefaultAsync(p => p.id == id && !p.delete_flag, cancellationToken);
+
+        if (entity is null)
+        {
+            return NotFound();
+        }
+
+        entity.delete_flag = true;
+        await _db.SaveChangesAsync(cancellationToken);
+
+        return NoContent();
+    }
 }
