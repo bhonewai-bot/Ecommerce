@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { api } from "../api/client";
+import { api } from "../../api/client";
 import ProductCard from "../components/ProductCard";
+import ProductSkeleton from "../components/ProductSkeleton";
 
 export default function CatalogPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -191,7 +192,13 @@ export default function CatalogPage() {
         ))}
       </div>
 
-      {status === "loading" && <div className="state">Loading catalog…</div>}
+      {status === "loading" && (
+        <div className="grid">
+          {Array.from({ length: 8 }).map((_, index) => (
+            <ProductSkeleton key={`skeleton-${index}`} />
+          ))}
+        </div>
+      )}
       {status === "error" && <div className="state error">{error}</div>}
 
       {status === "ready" && (

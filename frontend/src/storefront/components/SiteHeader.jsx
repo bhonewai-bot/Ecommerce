@@ -51,6 +51,9 @@ export default function SiteHeader() {
           <NavLink to="/" className={navClassName}>
             Home
           </NavLink>
+          <NavLink to="/admin" className={navClassName}>
+            Admin
+          </NavLink>
           <span className="nav-pill">User storefront</span>
         </nav>
       </div>
