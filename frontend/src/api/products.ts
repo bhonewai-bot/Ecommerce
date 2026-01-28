@@ -27,7 +27,7 @@ export function listPublicProducts(params: {
   return request("/api/products", { params });
 }
 
-export function getProductById(id: number | string): Promise<Product> {
+export function getProductById(id: number): Promise<Product> {
   return request(`/api/products/${id}`);
 }
 

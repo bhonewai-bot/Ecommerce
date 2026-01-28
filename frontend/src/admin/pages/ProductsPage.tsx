@@ -1,15 +1,19 @@
 import { useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import ConfirmDialog from "../components/ConfirmDialog";
-import type { Category, Product, CreateProductInput, UpdateProductInput } from "../../types/api";
-import { listProducts, createProduct, updateProduct, removeProduct } from "../../api/products";
-import { listCategories } from "../../api/categories";
+import type { Category, Product, CreateProductInput } from "../../types/api";
+import {
+  useCreateProduct,
+  useDeleteProduct,
+  useProducts,
+  useUpdateProduct,
+} from "../../queries/products";
+import { useCategories } from "../../queries/categories";
 
 const emptyProductForm = {
   name: "",
   description: "",
-  price: "",
+  price: Number.NaN,
   imageUrl: "",
   categoryId: "",
 };
@@ -28,23 +32,14 @@ export default function ProductsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const queryClient = useQueryClient();
 
-  const categoriesQuery = useQuery({
-    queryKey: ["categories", "admin", "all"],
-    queryFn: () => listCategories({ page: 1, pageSize: 200 }),
-  });
-
-  const productsQuery = useQuery({
-    queryKey: ["products", { page, pageSize, q: searchQuery }],
-    queryFn: () =>
-      listProducts({
-        page,
-        pageSize,
-        sortBy: "id",
-        sortOrder: "desc",
-        q: searchQuery,
-      }),
+  const categoriesQuery = useCategories({ page: 1, pageSize: 200 });
+  const productsQuery = useProducts({
+    page,
+    pageSize,
+    sortBy: "id",
+    sortOrder: "desc",
+    q: searchQuery,
   });
 
   const categories = useMemo<Category[]>(() => {
@@ -68,10 +63,7 @@ export default function ProductsPage() {
     setProductForm({
       name: product.name ?? "",
       description: product.description ?? "",
-      price:
-        product.price === 0 || product.price
-          ? Number(product.price).toString()
-          : "",
+      price: Number.isFinite(product.price) ? product.price : Number.NaN,
       imageUrl: product.imageUrl ?? "",
       categoryId: product.categoryId?.toString() ?? "",
     });
@@ -82,37 +74,22 @@ export default function ProductsPage() {
     });
   };
 
-  const createMutation = useMutation({
-    mutationFn: (input: CreateProductInput) => createProduct(input),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, input }: { id: number; input: UpdateProductInput }) =>
-      updateProduct(id, input),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: number) => removeProduct(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-    },
-  });
+  const createMutation = useCreateProduct();
+  const updateMutation = useUpdateProduct();
+  const deleteMutation = useDeleteProduct();
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setMessage("");
     setError("");
 
+    const normalizedPrice = Number.isFinite(productForm.price)
+      ? productForm.price
+      : 0;
     const payload: CreateProductInput = {
       name: productForm.name.trim(),
       description: productForm.description.trim() || null,
-      price: Number(productForm.price) || 0,
+      price: normalizedPrice,
       imageUrl: productForm.imageUrl.trim() || null,
       categoryId: Number(productForm.categoryId),
     };
@@ -192,7 +169,7 @@ export default function ProductsPage() {
           <button
             className="button ghost"
             type="button"
-            onClick={() => queryClient.invalidateQueries({ queryKey: ["products"] })}
+            onClick={() => productsQuery.refetch()}
           >
             Refresh
           </button>
@@ -246,11 +223,14 @@ export default function ProductsPage() {
                 type="number"
                 min="0"
                 step="0.01"
-                value={productForm.price}
+                value={Number.isFinite(productForm.price) ? productForm.price : ""}
                 onChange={(event) =>
                   setProductForm((prev) => ({
                     ...prev,
-                    price: event.target.value,
+                    price:
+                      event.target.value === ""
+                        ? Number.NaN
+                        : Number(event.target.value),
                   }))
                 }
                 placeholder="0.00"
@@ -361,7 +341,7 @@ export default function ProductsPage() {
               </tr>
             </thead>
             <tbody>
-              {products.length === 0 && status !== "loading" && (
+              {products.length === 0 && !productsQuery.isLoading && (
                 <tr>
                   <td colSpan={6} className="table-empty">
                     No products yet.

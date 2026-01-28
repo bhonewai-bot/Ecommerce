@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ChangeEvent } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
 import ProductCard from "../components/ProductCard";
 import ProductSkeleton from "../components/ProductSkeleton";
 import type { Category, Product } from "../../types/api";
-import { listPublicCategories } from "../../api/categories";
-import { listPublicProducts } from "../../api/products";
+import { usePublicCategories } from "../../queries/categories";
+import { useProducts } from "../../queries/products";
 
 export default function CatalogPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -34,18 +33,17 @@ export default function CatalogPage() {
     [pageParam, sortByParam, sortOrderParam, categoryParam]
   );
 
-  const categoriesQuery = useQuery({
-    queryKey: ["categories", "public"],
-    queryFn: () => listPublicCategories(),
-  });
+  const categoriesQuery = usePublicCategories({ scope: "public" });
+  const productsQuery = useProducts({ ...queryArgs, scope: "public" });
 
-  const productsQuery = useQuery({
-    queryKey: ["products", "public", queryArgs],
-    queryFn: () => listPublicProducts(queryArgs),
-  });
-
-  const categories: Category[] = categoriesQuery.data ?? [];
-  const products: Product[] = productsQuery.data?.items ?? [];
+  const categories = useMemo<Category[]>(
+    () => categoriesQuery.data ?? [],
+    [categoriesQuery.data]
+  );
+  const products = useMemo<Product[]>(
+    () => productsQuery.data?.items ?? [],
+    [productsQuery.data]
+  );
 
   useEffect(() => {
     if (!productsQuery.data) return;

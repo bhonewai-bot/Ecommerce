@@ -1,19 +1,15 @@
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
 import type { Product } from "../../types/api";
-import { listCategories } from "../../api/categories";
-import { listProducts } from "../../api/products";
+import { useCategories } from "../../queries/categories";
+import { useProducts } from "../../queries/products";
 
 export default function DashboardPage() {
-  const categoriesQuery = useQuery({
-    queryKey: ["categories", "admin", "stats"],
-    queryFn: () => listCategories({ page: 1, pageSize: 1 }),
-  });
-
-  const productsQuery = useQuery({
-    queryKey: ["products", "admin", "recent"],
-    queryFn: () =>
-      listProducts({ page: 1, pageSize: 5, sortBy: "id", sortOrder: "desc" }),
+  const categoriesQuery = useCategories({ page: 1, pageSize: 1 });
+  const productsQuery = useProducts({
+    page: 1,
+    pageSize: 5,
+    sortBy: "id",
+    sortOrder: "desc",
   });
 
   const stats = {

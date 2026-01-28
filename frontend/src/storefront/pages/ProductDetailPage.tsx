@@ -1,15 +1,11 @@
 import { Link, useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
 import type { Product } from "../../types/api";
-import { getProductById } from "../../api/products";
+import { useProduct } from "../../queries/products";
 
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const productQuery = useQuery({
-    queryKey: ["products", "public", "detail", id],
-    queryFn: () => getProductById(id ?? ""),
-    enabled: Boolean(id),
-  });
+  const numericId = id ? Number(id) : NaN;
+  const productQuery = useProduct({ id: numericId });
 
   const product: Product | undefined = productQuery.data;
   const errorMessage =
@@ -21,7 +17,7 @@ export default function ProductDetailPage() {
     return <div className="state">Loading product…</div>;
   }
 
-  if (!id || productQuery.isError) {
+  if (!id || Number.isNaN(numericId) || productQuery.isError) {
     return (
       <div className="state error">
         {id ? errorMessage : "Product not found."}

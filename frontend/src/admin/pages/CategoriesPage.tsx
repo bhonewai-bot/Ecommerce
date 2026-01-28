@@ -1,9 +1,13 @@
 import { useRef, useState } from "react";
 import type { FormEvent } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import ConfirmDialog from "../components/ConfirmDialog";
-import type { Category, CreateCategoryInput, UpdateCategoryInput } from "../../types/api";
-import { listCategories, createCategory, updateCategory, removeCategory } from "../../api/categories";
+import type { Category, CreateCategoryInput } from "../../types/api";
+import {
+  useCategories,
+  useCreateCategory,
+  useDeleteCategory,
+  useUpdateCategory,
+} from "../../queries/categories";
 
 const emptyCategoryForm = { name: "", description: "" };
 type CategoryFormState = typeof emptyCategoryForm;
@@ -20,12 +24,8 @@ export default function CategoriesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const queryClient = useQueryClient();
 
-  const categoriesQuery = useQuery({
-    queryKey: ["categories", { page, pageSize, q: searchQuery }],
-    queryFn: () => listCategories({ page, pageSize, q: searchQuery }),
-  });
+  const categoriesQuery = useCategories({ page, pageSize, q: searchQuery });
 
   const categories = categoriesQuery.data?.items ?? [];
   const totalCount = categoriesQuery.data?.totalCount ?? categories.length;
@@ -35,27 +35,9 @@ export default function CategoriesPage() {
     setEditingId(null);
   };
 
-  const createMutation = useMutation({
-    mutationFn: (input: CreateCategoryInput) => createCategory(input),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["categories"] });
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, input }: { id: number; input: UpdateCategoryInput }) =>
-      updateCategory(id, input),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["categories"] });
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: number) => removeCategory(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["categories"] });
-    },
-  });
+  const createMutation = useCreateCategory();
+  const updateMutation = useUpdateCategory();
+  const deleteMutation = useDeleteCategory();
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -145,7 +127,7 @@ export default function CategoriesPage() {
           <button
             className="button ghost"
             type="button"
-            onClick={() => queryClient.invalidateQueries({ queryKey: ["categories"] })}
+            onClick={() => categoriesQuery.refetch()}
           >
             Refresh
           </button>
@@ -257,7 +239,7 @@ export default function CategoriesPage() {
               </tr>
             </thead>
             <tbody>
-              {categories.length === 0 && status !== "loading" && (
+              {categories.length === 0 && !categoriesQuery.isLoading && (
                 <tr>
                   <td colSpan={4} className="table-empty">
                     No categories yet.
