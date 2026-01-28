@@ -1,41 +1,32 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { api } from "../../api/client";
+import { useQuery } from "@tanstack/react-query";
+import type { Product } from "../../types/api";
+import { listCategories } from "../../api/categories";
+import { listProducts } from "../../api/products";
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState({ products: 0, categories: 0 });
-  const [recentProducts, setRecentProducts] = useState([]);
-  const [status, setStatus] = useState("idle");
-  const [error, setError] = useState("");
+  const categoriesQuery = useQuery({
+    queryKey: ["categories", "admin", "stats"],
+    queryFn: () => listCategories({ page: 1, pageSize: 1 }),
+  });
 
-  useEffect(() => {
-    let isMounted = true;
-    setStatus("loading");
-    setError("");
+  const productsQuery = useQuery({
+    queryKey: ["products", "admin", "recent"],
+    queryFn: () =>
+      listProducts({ page: 1, pageSize: 5, sortBy: "id", sortOrder: "desc" }),
+  });
 
-    Promise.all([
-      api.getAdminCategories(1, 1, ""),
-      api.getAdminProducts(1, 5, "id", "desc", null, ""),
-    ])
-      .then(([categoriesData, productsData]) => {
-        if (!isMounted) return;
-        setStats({
-          categories: categoriesData.totalCount ?? categoriesData.items?.length ?? 0,
-          products: productsData.totalCount ?? productsData.items.length,
-        });
-        setRecentProducts(productsData.items || []);
-        setStatus("ready");
-      })
-      .catch((err) => {
-        if (!isMounted) return;
-        setError(err.message || "Failed to load dashboard.");
-        setStatus("error");
-      });
+  const stats = {
+    categories: categoriesQuery.data?.totalCount ?? 0,
+    products: productsQuery.data?.totalCount ?? 0,
+  };
 
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  const recentProducts: Product[] = productsQuery.data?.items ?? [];
+  const isLoading = categoriesQuery.isLoading || productsQuery.isLoading;
+  const error =
+    (categoriesQuery.error as Error | undefined)?.message ||
+    (productsQuery.error as Error | undefined)?.message ||
+    "";
 
   return (
     <section className="admin-page">
@@ -62,10 +53,10 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {status === "loading" && <div className="state">Loading dashboard…</div>}
-      {status === "error" && <div className="state error">{error}</div>}
+      {isLoading && <div className="state">Loading dashboard…</div>}
+      {error && <div className="state error">{error}</div>}
 
-      {status === "ready" && (
+      {!isLoading && !error && (
         <div className="admin-panel">
           <div className="admin-panel-header">
             <h3>Recently added products</h3>

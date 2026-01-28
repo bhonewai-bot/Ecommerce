@@ -1,6 +1,6 @@
 import { Link, NavLink } from "react-router-dom";
 
-const navClassName = ({ isActive }) =>
+const navClassName = ({ isActive }: { isActive: boolean }) =>
   isActive ? "nav-link nav-link--active" : "nav-link";
 
 export default function AdminHeader() {

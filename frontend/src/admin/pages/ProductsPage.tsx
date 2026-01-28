@@ -1,6 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { api } from "../../api/client";
+import { useMemo, useRef, useState } from "react";
+import type { FormEvent } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import ConfirmDialog from "../components/ConfirmDialog";
+import type { Category, Product, CreateProductInput, UpdateProductInput } from "../../types/api";
+import { listProducts, createProduct, updateProduct, removeProduct } from "../../api/products";
+import { listCategories } from "../../api/categories";
 
 const emptyProductForm = {
   name: "",
@@ -10,53 +14,56 @@ const emptyProductForm = {
   categoryId: "",
 };
 
+type ProductFormState = typeof emptyProductForm;
+
 export default function ProductsPage() {
-  const [categories, setCategories] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [status, setStatus] = useState("idle");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [productForm, setProductForm] = useState(emptyProductForm);
-  const [editingId, setEditingId] = useState(null);
-  const [pendingDelete, setPendingDelete] = useState(null);
-  const formRef = useRef(null);
+  const [productForm, setProductForm] = useState<ProductFormState>(
+    emptyProductForm
+  );
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<Product | null>(null);
+  const formRef = useRef<HTMLFormElement | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [totalCount, setTotalCount] = useState(0);
+  const queryClient = useQueryClient();
 
-  const categoryMap = useMemo(() => {
+  const categoriesQuery = useQuery({
+    queryKey: ["categories", "admin", "all"],
+    queryFn: () => listCategories({ page: 1, pageSize: 200 }),
+  });
+
+  const productsQuery = useQuery({
+    queryKey: ["products", { page, pageSize, q: searchQuery }],
+    queryFn: () =>
+      listProducts({
+        page,
+        pageSize,
+        sortBy: "id",
+        sortOrder: "desc",
+        q: searchQuery,
+      }),
+  });
+
+  const categories = useMemo<Category[]>(() => {
+    return categoriesQuery.data?.items ?? [];
+  }, [categoriesQuery.data]);
+
+  const products = productsQuery.data?.items ?? [];
+  const totalCount = productsQuery.data?.totalCount ?? products.length;
+
+  const categoryMap = useMemo<Record<number, string>>(() => {
     return Object.fromEntries(categories.map((cat) => [cat.id, cat.name]));
   }, [categories]);
-
-  const loadData = async () => {
-    setStatus("loading");
-    setError("");
-    try {
-      const [categoriesData, productsData] = await Promise.all([
-        api.getAdminCategories(1, 200, ""),
-        api.getAdminProducts(page, pageSize, "id", "desc", null, searchQuery),
-      ]);
-      setCategories(categoriesData.items ?? categoriesData);
-      setProducts(productsData.items);
-      setTotalCount(productsData.totalCount ?? productsData.items.length);
-      setStatus("ready");
-    } catch (err) {
-      setError(err.message || "Failed to load products.");
-      setStatus("error");
-    }
-  };
-
-  useEffect(() => {
-    loadData();
-  }, [page, pageSize, searchQuery]);
 
   const resetForm = () => {
     setProductForm(emptyProductForm);
     setEditingId(null);
   };
 
-  const handleEdit = (product) => {
+  const handleEdit = (product: Product) => {
     setEditingId(product.id);
     setProductForm({
       name: product.name ?? "",
@@ -75,12 +82,34 @@ export default function ProductsPage() {
     });
   };
 
-  const handleSubmit = async (event) => {
+  const createMutation = useMutation({
+    mutationFn: (input: CreateProductInput) => createProduct(input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, input }: { id: number; input: UpdateProductInput }) =>
+      updateProduct(id, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => removeProduct(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+    },
+  });
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setMessage("");
     setError("");
 
-    const payload = {
+    const payload: CreateProductInput = {
       name: productForm.name.trim(),
       description: productForm.description.trim() || null,
       price: Number(productForm.price) || 0,
@@ -103,34 +132,53 @@ export default function ProductsPage() {
       return;
     }
 
-    try {
-      if (editingId) {
-        await api.updateProduct(editingId, payload);
-        setMessage("Product updated.");
-      } else {
-        await api.createProduct(payload);
-        setMessage("Product created.");
-      }
-      resetForm();
-      await loadData();
-    } catch (err) {
-      setError(err.message || "Failed to save product.");
+    if (editingId) {
+      updateMutation.mutate(
+        { id: editingId, input: payload },
+        {
+          onSuccess: () => {
+            setMessage("Product updated.");
+            resetForm();
+          },
+          onError: (err) => {
+            const message =
+              err instanceof Error ? err.message : "Failed to save product.";
+            setError(message);
+          },
+        }
+      );
+      return;
     }
+
+    createMutation.mutate(payload, {
+      onSuccess: () => {
+        setMessage("Product created.");
+        resetForm();
+      },
+      onError: (err) => {
+        const message =
+          err instanceof Error ? err.message : "Failed to save product.";
+        setError(message);
+      },
+    });
   };
 
-  const handleDelete = async (product) => {
+  const handleDelete = async (product: Product) => {
     setMessage("");
     setError("");
-    try {
-      await api.deleteProduct(product.id);
-      setMessage("Product deleted.");
-      if (editingId === product.id) {
-        resetForm();
-      }
-      await loadData();
-    } catch (err) {
-      setError(err.message || "Failed to delete product.");
-    }
+    deleteMutation.mutate(product.id, {
+      onSuccess: () => {
+        setMessage("Product deleted.");
+        if (editingId === product.id) {
+          resetForm();
+        }
+      },
+      onError: (err) => {
+        const message =
+          err instanceof Error ? err.message : "Failed to delete product.";
+        setError(message);
+      },
+    });
   };
 
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
@@ -141,7 +189,11 @@ export default function ProductsPage() {
       <div className="admin-panel">
         <div className="admin-panel-header">
           <h3>Products</h3>
-          <button className="button ghost" type="button" onClick={loadData}>
+          <button
+            className="button ghost"
+            type="button"
+            onClick={() => queryClient.invalidateQueries({ queryKey: ["products"] })}
+          >
             Refresh
           </button>
         </div>
@@ -287,7 +339,14 @@ export default function ProductsPage() {
 
         {message && <div className="state admin-success">{message}</div>}
         {error && <div className="state error">{error}</div>}
-        {status === "loading" && <div className="state">Loading products…</div>}
+        {productsQuery.isLoading && (
+          <div className="state">Loading products…</div>
+        )}
+        {productsQuery.isError && !error && (
+          <div className="state error">
+            {(productsQuery.error as Error)?.message || "Failed to load products."}
+          </div>
+        )}
 
         <div className="table-wrap">
           <table className="admin-table">
@@ -315,9 +374,7 @@ export default function ProductsPage() {
                   <td>{product.name}</td>
                   <td>{categoryMap[product.categoryId] || "Unassigned"}</td>
                   <td>${Number(product.price || 0).toFixed(2)}</td>
-                  <td className="table-muted">
-                    {product.description || "-"}
-                  </td>
+                  <td className="table-muted">{product.description || "-"}</td>
                   <td>
                     <div className="table-actions">
                       <button

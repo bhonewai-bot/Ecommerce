@@ -1,3 +1,13 @@
+type ConfirmDialogProps = {
+  open: boolean;
+  title: string;
+  description?: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+};
+
 export default function ConfirmDialog({
   open,
   title,
@@ -6,7 +16,7 @@ export default function ConfirmDialog({
   cancelLabel = "Cancel",
   onConfirm,
   onCancel,
-}) {
+}: ConfirmDialogProps) {
   if (!open) return null;
 
   return (

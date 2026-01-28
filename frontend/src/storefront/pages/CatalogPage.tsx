@@ -1,8 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
+import type { ChangeEvent } from "react";
 import { useSearchParams } from "react-router-dom";
-import { api } from "../../api/client";
+import { useQuery } from "@tanstack/react-query";
 import ProductCard from "../components/ProductCard";
 import ProductSkeleton from "../components/ProductSkeleton";
+import type { Category, Product } from "../../types/api";
+import { listPublicCategories } from "../../api/categories";
+import { listPublicProducts } from "../../api/products";
 
 export default function CatalogPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -11,51 +15,65 @@ export default function CatalogPage() {
   const pageParam = Number(searchParams.get("page") ?? "1") || 1;
   const sortByParam = searchParams.get("sortBy") ?? "id";
   const sortOrderParam = searchParams.get("sortOrder") ?? "asc";
-  const [categories, setCategories] = useState([]);
-  const [products, setProducts] = useState([]);
   const [pageInfo, setPageInfo] = useState({ page: 1, pageSize: 20, total: 0 });
-  const [selectedCategory, setSelectedCategory] = useState("all");
-  const [status, setStatus] = useState("idle");
+  const [selectedCategory, setSelectedCategory] = useState<"all" | number>("all");
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    let isMounted = true;
-    setStatus("loading");
-
-    const categoryId =
-      categoryParam === "all" ? null : Number(categoryParam);
-
-    Promise.all([
-      api.getCategories(),
-      api.getProducts(pageParam, 10, sortByParam, sortOrderParam, categoryId),
-    ])
-      .then(([categoriesData, productsData]) => {
-        if (!isMounted) return;
-        setCategories(categoriesData);
-        setProducts(productsData.items);
-        setPageInfo({
-          page: productsData.page,
-          pageSize: productsData.pageSize,
-          total: productsData.totalCount,
-        });
-        setStatus("ready");
-      })
-      .catch((err) => {
-        if (!isMounted) return;
-        setError(err.message || "Failed to load catalog.");
-        setStatus("error");
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [pageParam, sortByParam, sortOrderParam, categoryParam]);
 
   useEffect(() => {
     setSelectedCategory(categoryParam === "all" ? "all" : Number(categoryParam));
   }, [categoryParam, queryParam]);
 
-  const categoryMap = useMemo(() => {
+  const queryArgs = useMemo(
+    () => ({
+      page: pageParam,
+      pageSize: 10,
+      sortBy: sortByParam,
+      sortOrder: sortOrderParam,
+      categoryId: categoryParam === "all" ? null : Number(categoryParam),
+    }),
+    [pageParam, sortByParam, sortOrderParam, categoryParam]
+  );
+
+  const categoriesQuery = useQuery({
+    queryKey: ["categories", "public"],
+    queryFn: () => listPublicCategories(),
+  });
+
+  const productsQuery = useQuery({
+    queryKey: ["products", "public", queryArgs],
+    queryFn: () => listPublicProducts(queryArgs),
+  });
+
+  const categories: Category[] = categoriesQuery.data ?? [];
+  const products: Product[] = productsQuery.data?.items ?? [];
+
+  useEffect(() => {
+    if (!productsQuery.data) return;
+    setPageInfo({
+      page: productsQuery.data.page,
+      pageSize: productsQuery.data.pageSize,
+      total: productsQuery.data.totalCount,
+    });
+  }, [productsQuery.data]);
+
+  useEffect(() => {
+    if (categoriesQuery.isError) {
+      const message =
+        categoriesQuery.error instanceof Error
+          ? categoriesQuery.error.message
+          : "Failed to load catalog.";
+      setError(message);
+    }
+    if (productsQuery.isError) {
+      const message =
+        productsQuery.error instanceof Error
+          ? productsQuery.error.message
+          : "Failed to load catalog.";
+      setError(message);
+    }
+  }, [categoriesQuery.isError, productsQuery.isError, categoriesQuery.error, productsQuery.error]);
+
+  const categoryMap = useMemo<Record<number, string>>(() => {
     return Object.fromEntries(categories.map((cat) => [cat.id, cat.name]));
   }, [categories]);
 
@@ -70,7 +88,7 @@ export default function CatalogPage() {
     });
   }, [products, queryParam]);
 
-  const handleCategoryChange = (value) => {
+  const handleCategoryChange = (value: "all" | number) => {
     const params = new URLSearchParams(searchParams);
     if (value === "all") {
       params.delete("category");
@@ -87,7 +105,7 @@ export default function CatalogPage() {
   const totalPages = Math.max(1, Math.ceil(pageInfo.total / pageInfo.pageSize));
   const currentPage = Math.min(Math.max(pageParam, 1), totalPages);
 
-  const handlePageChange = (nextPage) => {
+  const handlePageChange = (nextPage: number) => {
     const params = new URLSearchParams(searchParams);
     if (nextPage <= 1) {
       params.delete("page");
@@ -97,7 +115,7 @@ export default function CatalogPage() {
     setSearchParams(params);
   };
 
-  const handleSortChange = (event) => {
+  const handleSortChange = (event: ChangeEvent<HTMLSelectElement>) => {
     const value = event.target.value;
     const [nextSortBy, nextSortOrder] = value.split(":");
     const params = new URLSearchParams(searchParams);
@@ -192,16 +210,18 @@ export default function CatalogPage() {
         ))}
       </div>
 
-      {status === "loading" && (
+      {(categoriesQuery.isLoading || productsQuery.isLoading) && (
         <div className="grid">
           {Array.from({ length: 8 }).map((_, index) => (
             <ProductSkeleton key={`skeleton-${index}`} />
           ))}
         </div>
       )}
-      {status === "error" && <div className="state error">{error}</div>}
+      {(categoriesQuery.isError || productsQuery.isError) && (
+        <div className="state error">{error || "Failed to load catalog."}</div>
+      )}
 
-      {status === "ready" && (
+      {!categoriesQuery.isLoading && !productsQuery.isLoading && (
         <>
           <div className="grid">
             {filteredProducts.map((product) => (

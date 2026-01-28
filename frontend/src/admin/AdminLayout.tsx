@@ -29,10 +29,10 @@ export default function AdminLayout() {
         <main className="main">
           <Outlet />
         </main>
-        <footer className="footer admin-footer">
+        {/*<footer className="footer admin-footer">
           <span>Admin workspace · Internal use</span>
           <span>Catalog, inventory, and content controls</span>
-        </footer>
+        </footer>*/}
       </div>
     </div>
   );

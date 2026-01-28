@@ -1,6 +1,12 @@
 import { Link } from "react-router-dom";
+import type { Product } from "../../types/api";
 
-export default function ProductCard({ product, category }) {
+type ProductCardProps = {
+  product: Product;
+  category?: string;
+};
+
+export default function ProductCard({ product, category }: ProductCardProps) {
   return (
     <article className="product-card">
       <div className="product-media">

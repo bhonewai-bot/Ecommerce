@@ -1,43 +1,30 @@
-import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { api } from "../../api/client";
+import { useQuery } from "@tanstack/react-query";
+import type { Product } from "../../types/api";
+import { getProductById } from "../../api/products";
 
 export default function ProductDetailPage() {
-  const { id } = useParams();
-  const [product, setProduct] = useState(null);
-  const [status, setStatus] = useState("idle");
-  const [error, setError] = useState("");
+  const { id } = useParams<{ id: string }>();
+  const productQuery = useQuery({
+    queryKey: ["products", "public", "detail", id],
+    queryFn: () => getProductById(id ?? ""),
+    enabled: Boolean(id),
+  });
 
-  useEffect(() => {
-    let isMounted = true;
-    setStatus("loading");
+  const product: Product | undefined = productQuery.data;
+  const errorMessage =
+    productQuery.error instanceof Error
+      ? productQuery.error.message
+      : "Failed to load product.";
 
-    api
-      .getProduct(id)
-      .then((data) => {
-        if (!isMounted) return;
-        setProduct(data);
-        setStatus("ready");
-      })
-      .catch((err) => {
-        if (!isMounted) return;
-        setError(err.message || "Failed to load product.");
-        setStatus("error");
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [id]);
-
-  if (status === "loading") {
+  if (productQuery.isLoading) {
     return <div className="state">Loading product…</div>;
   }
 
-  if (status === "error") {
+  if (!id || productQuery.isError) {
     return (
       <div className="state error">
-        {error}
+        {id ? errorMessage : "Product not found."}
         <Link className="button ghost" to="/">
           Back to catalog
         </Link>

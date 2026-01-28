@@ -1,7 +1,8 @@
 import { Link, NavLink, useSearchParams } from "react-router-dom";
 import { useEffect, useState } from "react";
+import type { FormEvent } from "react";
 
-const navClassName = ({ isActive }) =>
+const navClassName = ({ isActive }: { isActive: boolean }) =>
   isActive ? "nav-link nav-link--active" : "nav-link";
 
 export default function SiteHeader() {
@@ -14,7 +15,7 @@ export default function SiteHeader() {
     setQuery(queryParam);
   }, [queryParam]);
 
-  const handleSubmit = (event) => {
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const params = new URLSearchParams();
     if (query.trim()) {
