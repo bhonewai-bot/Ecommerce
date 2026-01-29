@@ -1,5 +1,5 @@
 using Ecommerce.Application.Common;
-using Ecommerce.Application.Orders;
+using Ecommerce.Application.Features.Checkout.Commands;
 
 namespace Ecommerce.Application.Contracts;
 

@@ -1,6 +1,6 @@
 using Ecommerce.Application.Common;
-using Ecommerce.Application.Common.Dtos;
 using Ecommerce.Application.Contracts;
+using Ecommerce.Application.Features.Categories.Models;
 using Ecommerce.Infrastructure.Data;
 using Ecommerce.Infrastructure.Data.Models;
 using Microsoft.EntityFrameworkCore;
@@ -17,18 +17,16 @@ public sealed class CategoryRepository : ICategoryRepository
     }
 
     public async Task<(IReadOnlyList<CategoryDto> Items, int TotalCount)> GetCategoriesAsync(
-        int page,
-        int pageSize,
-        string? query,
+        CategoryListQuery query,
         CancellationToken cancellationToken)
     {
         var dbQuery = _db.categories
             .AsNoTracking()
             .Where(c => !c.delete_flag);
 
-        if (!string.IsNullOrWhiteSpace(query))
+        if (!string.IsNullOrWhiteSpace(query.Search))
         {
-            var term = query.Trim().ToLowerInvariant();
+            var term = query.Search.Trim().ToLowerInvariant();
             dbQuery = dbQuery.Where(c =>
                 c.name.ToLower().Contains(term) ||
                 (c.description != null && c.description.ToLower().Contains(term)));
@@ -38,8 +36,8 @@ public sealed class CategoryRepository : ICategoryRepository
 
         var items = await dbQuery
             .OrderByDescending(c => c.id)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+            .Skip((query.Page - 1) * query.PageSize)
+            .Take(query.PageSize)
             .Select(c => new CategoryDto(c.id, c.name, c.description))
             .ToListAsync(cancellationToken);
 
@@ -57,12 +55,12 @@ public sealed class CategoryRepository : ICategoryRepository
         return item is null ? Result<CategoryDto>.NotFound() : Result<CategoryDto>.Ok(item);
     }
 
-    public async Task<Result<CategoryDto>> CreateAsync(CategoryCreateDto dto, CancellationToken cancellationToken)
+    public async Task<Result<CategoryDto>> CreateAsync(CreateCategoryCommand command, CancellationToken cancellationToken)
     {
         var entity = new category
         {
-            name = dto.Name,
-            description = dto.Description,
+            name = command.Name,
+            description = command.Description,
             delete_flag = false
         };
 
@@ -72,7 +70,7 @@ public sealed class CategoryRepository : ICategoryRepository
         return Result<CategoryDto>.Ok(new CategoryDto(entity.id, entity.name, entity.description));
     }
 
-    public async Task<Result> UpdateAsync(int id, CategoryUpdateDto dto, CancellationToken cancellationToken)
+    public async Task<Result> UpdateAsync(int id, UpdateCategoryCommand command, CancellationToken cancellationToken)
     {
         var entity = await _db.categories
             .FirstOrDefaultAsync(c => c.id == id && !c.delete_flag, cancellationToken);
@@ -82,8 +80,8 @@ public sealed class CategoryRepository : ICategoryRepository
             return Result.NotFound();
         }
 
-        entity.name = dto.Name;
-        entity.description = dto.Description;
+        entity.name = command.Name;
+        entity.description = command.Description;
 
         await _db.SaveChangesAsync(cancellationToken);
         return Result.Ok();
@@ -91,29 +89,24 @@ public sealed class CategoryRepository : ICategoryRepository
 
     public async Task<Result> DeleteAsync(int id, CancellationToken cancellationToken)
     {
-        var loaded = await _db.categories
-            .Where(c => c.id == id && !c.delete_flag)
-            .Select(c => new
-            {
-                Entity = c,
-                HasActiveProducts = c.products.Any(p => !p.delete_flag)
-            })
-            .FirstOrDefaultAsync(cancellationToken);
+        var entity = await _db.categories
+            .FirstOrDefaultAsync(c => c.id == id && !c.delete_flag, cancellationToken);
 
-        if (loaded is null)
+        if (entity is null)
         {
             return Result.NotFound();
         }
 
-        if (loaded.HasActiveProducts)
-        {
-            return Result.Conflict("Category has active products. Delete products first.");
-        }
-
-        loaded.Entity.delete_flag = true;
+        entity.delete_flag = true;
         await _db.SaveChangesAsync(cancellationToken);
 
         return Result.Ok();
+    }
+
+    public async Task<bool> HasActiveProductsAsync(int id, CancellationToken cancellationToken)
+    {
+        return await _db.products
+            .AnyAsync(p => p.category_id == id && !p.delete_flag, cancellationToken);
     }
 
     public async Task<IReadOnlyList<CategoryDto>> GetAllAsync(CancellationToken cancellationToken)

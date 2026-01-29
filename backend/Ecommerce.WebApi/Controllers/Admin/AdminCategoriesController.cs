@@ -1,6 +1,6 @@
-using Ecommerce.Application.Admin.Categories;
 using Ecommerce.Application.Common;
-using Ecommerce.Application.Common.Dtos;
+using Ecommerce.Application.Features.Categories.Admin;
+using Ecommerce.Application.Features.Categories.Models;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Ecommerce.WebApi.Controllers.Admin;
@@ -23,11 +23,11 @@ public sealed class AdminCategoriesController : ControllerBase
         [FromQuery] string? q = null,
         CancellationToken cancellationToken = default)
     {
-        var result = await _service.GetAllAsync(new GetAdminCategoriesParams
+        var result = await _service.GetAllAsync(new AdminCategoryListQuery
         {
             Page = page,
             PageSize = pageSize,
-            Query = q
+            Search = q
         }, cancellationToken);
 
         return Ok(new
@@ -36,7 +36,7 @@ public sealed class AdminCategoriesController : ControllerBase
             totalCount = result.TotalCount,
             page = result.Page,
             pageSize = result.PageSize,
-            query = result.Query
+            query = result.Search
         });
     }
 
@@ -53,9 +53,9 @@ public sealed class AdminCategoriesController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<ActionResult<CategoryDto>> Create(CategoryCreateDto dto, CancellationToken cancellationToken)
+    public async Task<ActionResult<CategoryDto>> Create(CreateCategoryRequest request, CancellationToken cancellationToken)
     {
-        var result = await _service.CreateAsync(dto, cancellationToken);
+        var result = await _service.CreateAsync(request, cancellationToken);
 
         return result.Status switch
         {
@@ -64,9 +64,9 @@ public sealed class AdminCategoriesController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
-    public async Task<IActionResult> Update(int id, CategoryUpdateDto dto, CancellationToken cancellationToken)
+    public async Task<IActionResult> Update(int id, UpdateCategoryRequest request, CancellationToken cancellationToken)
     {
-        var result = await _service.UpdateAsync(id, dto, cancellationToken);
+        var result = await _service.UpdateAsync(id, request, cancellationToken);
 
         return result.Status switch
         {

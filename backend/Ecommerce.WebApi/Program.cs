@@ -1,8 +1,8 @@
-using Ecommerce.Application.Admin.Categories;
-using Ecommerce.Application.Admin.Products;
-using Ecommerce.Application.Orders;
-using Ecommerce.Application.Public.Categories;
-using Ecommerce.Application.Public.Products;
+using Ecommerce.Application.Features.Categories.Admin;
+using Ecommerce.Application.Features.Categories.Public;
+using Ecommerce.Application.Features.Checkout;
+using Ecommerce.Application.Features.Products.Admin;
+using Ecommerce.Application.Features.Products.Public;
 using Ecommerce.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);

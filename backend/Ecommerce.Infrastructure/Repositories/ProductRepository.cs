@@ -1,7 +1,6 @@
 using Ecommerce.Application.Common;
-using Ecommerce.Application.Common.Dtos;
 using Ecommerce.Application.Contracts;
-using Ecommerce.Application.Products;
+using Ecommerce.Application.Features.Products.Models;
 using Ecommerce.Infrastructure.Data;
 using Ecommerce.Infrastructure.Data.Models;
 using Microsoft.EntityFrameworkCore;
@@ -96,23 +95,15 @@ public sealed class ProductRepository : IProductRepository
         return item is null ? Result<ProductDto>.NotFound() : Result<ProductDto>.Ok(item);
     }
 
-    public async Task<Result<ProductDto>> CreateAsync(ProductCreateDto dto, CancellationToken cancellationToken)
+    public async Task<Result<ProductDto>> CreateAsync(CreateProductCommand command, CancellationToken cancellationToken)
     {
-        var categoryExists = await _db.categories
-            .AnyAsync(c => c.id == dto.CategoryId && !c.delete_flag, cancellationToken);
-
-        if (!categoryExists)
-        {
-            return Result<ProductDto>.BadRequest("Category does not exist.");
-        }
-
         var entity = new product
         {
-            category_id = dto.CategoryId,
-            name = dto.Name,
-            description = dto.Description,
-            price = dto.Price,
-            image_url = dto.ImageUrl,
+            category_id = command.CategoryId,
+            name = command.Name,
+            description = command.Description,
+            price = command.Price,
+            image_url = command.ImageUrl,
             delete_flag = false
         };
 
@@ -130,7 +121,7 @@ public sealed class ProductRepository : IProductRepository
         return Result<ProductDto>.Ok(dtoResult);
     }
 
-    public async Task<Result> UpdateAsync(int id, ProductUpdateDto dto, CancellationToken cancellationToken)
+    public async Task<Result> UpdateAsync(int id, UpdateProductCommand command, CancellationToken cancellationToken)
     {
         var entity = await _db.products
             .FirstOrDefaultAsync(p => p.id == id && !p.delete_flag, cancellationToken);
@@ -140,19 +131,11 @@ public sealed class ProductRepository : IProductRepository
             return Result.NotFound();
         }
 
-        var categoryExists = await _db.categories
-            .AnyAsync(c => c.id == dto.CategoryId && !c.delete_flag, cancellationToken);
-
-        if (!categoryExists)
-        {
-            return Result.BadRequest("Category does not exist.");
-        }
-
-        entity.category_id = dto.CategoryId;
-        entity.name = dto.Name;
-        entity.description = dto.Description;
-        entity.price = dto.Price;
-        entity.image_url = dto.ImageUrl;
+        entity.category_id = command.CategoryId;
+        entity.name = command.Name;
+        entity.description = command.Description;
+        entity.price = command.Price;
+        entity.image_url = command.ImageUrl;
 
         await _db.SaveChangesAsync(cancellationToken);
         return Result.Ok();

@@ -1,6 +1,7 @@
 using Ecommerce.Application.Common;
 using Ecommerce.Application.Contracts;
-using Ecommerce.Application.Orders;
+using Ecommerce.Application.Features.Checkout.Commands;
+using Ecommerce.Application.Features.Checkout;
 using Ecommerce.Infrastructure.Data;
 using Ecommerce.Infrastructure.Data.Models;
 using Microsoft.EntityFrameworkCore;

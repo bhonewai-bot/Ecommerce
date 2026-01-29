@@ -1,6 +1,6 @@
-using Ecommerce.Application.Admin.Products;
 using Ecommerce.Application.Common;
-using Ecommerce.Application.Common.Dtos;
+using Ecommerce.Application.Features.Products.Admin;
+using Ecommerce.Application.Features.Products.Models;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Ecommerce.WebApi.Controllers.Admin;
@@ -26,12 +26,12 @@ public sealed class AdminProductsController : ControllerBase
         [FromQuery] string sortOrder = "asc",
         CancellationToken cancellationToken = default)
     {
-        var result = await _service.GetAllAsync(new GetAdminProductsParams
+        var result = await _service.GetAllAsync(new AdminProductListQuery
         {
             Page = page,
             PageSize = pageSize,
             CategoryId = categoryId,
-            Query = q,
+            Search = q,
             SortBy = sortBy,
             SortOrder = sortOrder
         }, cancellationToken);
@@ -61,9 +61,9 @@ public sealed class AdminProductsController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<ActionResult<ProductDto>> Create(ProductCreateDto dto, CancellationToken cancellationToken)
+    public async Task<ActionResult<ProductDto>> Create(CreateProductRequest request, CancellationToken cancellationToken)
     {
-        var result = await _service.CreateAsync(dto, cancellationToken);
+        var result = await _service.CreateAsync(request, cancellationToken);
 
         return result.Status switch
         {
@@ -73,9 +73,9 @@ public sealed class AdminProductsController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
-    public async Task<IActionResult> Update(int id, ProductUpdateDto dto, CancellationToken cancellationToken)
+    public async Task<IActionResult> Update(int id, UpdateProductRequest request, CancellationToken cancellationToken)
     {
-        var result = await _service.UpdateAsync(id, dto, cancellationToken);
+        var result = await _service.UpdateAsync(id, request, cancellationToken);
 
         return result.Status switch
         {
