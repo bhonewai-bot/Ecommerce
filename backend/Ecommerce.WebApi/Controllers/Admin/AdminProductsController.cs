@@ -1,8 +1,7 @@
-using Ecommerce.Infrastructure.Data;
-using Ecommerce.Infrastructure.Data.Models;
-using Ecommerce.WebApi.Dtos;
+using Ecommerce.Application.Admin.Products;
+using Ecommerce.Application.Common;
+using Ecommerce.Application.Common.Dtos;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace Ecommerce.WebApi.Controllers.Admin;
 
@@ -10,11 +9,11 @@ namespace Ecommerce.WebApi.Controllers.Admin;
 [Route("api/admin/products")]
 public sealed class AdminProductsController : ControllerBase
 {
-    private readonly EcommerceDbContext _db;
+    private readonly IAdminProductsService _service;
 
-    public AdminProductsController(EcommerceDbContext db)
+    public AdminProductsController(IAdminProductsService service)
     {
-        _db = db;
+        _service = service;
     }
 
     [HttpGet]
@@ -27,172 +26,74 @@ public sealed class AdminProductsController : ControllerBase
         [FromQuery] string sortOrder = "asc",
         CancellationToken cancellationToken = default)
     {
-        if (page < 1) page = 1;
-        if (pageSize < 1) pageSize = 10;
-        if (pageSize > 100) pageSize = 100;
-
-        var query = _db.products
-            .AsNoTracking()
-            .Where(p => !p.delete_flag && !p.category.delete_flag);
-
-        if (categoryId.HasValue)
+        var result = await _service.GetAllAsync(new GetAdminProductsParams
         {
-            query = query.Where(p => p.category_id == categoryId.Value);
-        }
-
-        if (!string.IsNullOrWhiteSpace(q))
-        {
-            var term = q.Trim().ToLowerInvariant();
-            query = query.Where(p =>
-                p.name.ToLower().Contains(term) ||
-                (p.description != null && p.description.ToLower().Contains(term)));
-        }
-
-        var totalCount = await query.CountAsync(cancellationToken);
-
-        query = ApplySorting(query, sortBy, sortOrder);
-
-        var items = await query
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .Select(p => new ProductDto(
-                p.id,
-                p.category_id,
-                p.name,
-                p.description,
-                p.price,
-                p.image_url))
-            .ToListAsync(cancellationToken);
+            Page = page,
+            PageSize = pageSize,
+            CategoryId = categoryId,
+            Query = q,
+            SortBy = sortBy,
+            SortOrder = sortOrder
+        }, cancellationToken);
 
         return Ok(new
         {
-            items,
-            totalCount,
-            page,
-            pageSize,
-            categoryId,
-            sortBy,
-            sortOrder
+            items = result.Items,
+            totalCount = result.TotalCount,
+            page = result.Page,
+            pageSize = result.PageSize,
+            categoryId = result.CategoryId,
+            sortBy = result.SortBy,
+            sortOrder = result.SortOrder
         });
-    }
-
-    private static IQueryable<product> ApplySorting(
-        IQueryable<product> query,
-        string sortBy,
-        string sortOrder)
-    {
-        var desc = string.Equals(sortOrder, "desc", StringComparison.OrdinalIgnoreCase);
-        var key = sortBy?.ToLowerInvariant();
-
-        return key switch
-        {
-            "name" => desc ? query.OrderByDescending(p => p.name) : query.OrderBy(p => p.name),
-            "price" => desc ? query.OrderByDescending(p => p.price) : query.OrderBy(p => p.price),
-            _ => desc ? query.OrderByDescending(p => p.id) : query.OrderBy(p => p.id)
-        };
     }
 
     [HttpGet("{id:int}")]
     public async Task<ActionResult<ProductDto>> GetById(int id, CancellationToken cancellationToken)
     {
-        var item = await _db.products
-            .AsNoTracking()
-            .Where(p => p.id == id && !p.delete_flag && !p.category.delete_flag)
-            .Select(p => new ProductDto(
-                p.id,
-                p.category_id,
-                p.name,
-                p.description,
-                p.price,
-                p.image_url))
-            .FirstOrDefaultAsync(cancellationToken);
+        var item = await _service.GetByIdAsync(id, cancellationToken);
 
-        if (item is null)
+        return item.Status switch
         {
-            return NotFound();
-        }
-
-        return Ok(item);
+            ResultStatus.NotFound => NotFound(),
+            _ => Ok(item.Data)
+        };
     }
 
     [HttpPost]
     public async Task<ActionResult<ProductDto>> Create(ProductCreateDto dto, CancellationToken cancellationToken)
     {
-        var categoryExists = await _db.categories
-            .AnyAsync(c => c.id == dto.CategoryId && !c.delete_flag, cancellationToken);
+        var result = await _service.CreateAsync(dto, cancellationToken);
 
-        if (!categoryExists)
+        return result.Status switch
         {
-            return BadRequest("Category does not exist.");
-        }
-
-        var entity = new product
-        {
-            category_id = dto.CategoryId,
-            name = dto.Name,
-            description = dto.Description,
-            price = dto.Price,
-            image_url = dto.ImageUrl,
-            delete_flag = false
+            ResultStatus.BadRequest => BadRequest(result.Error),
+            _ => CreatedAtAction(nameof(GetById), new { id = result.Data!.Id }, result.Data)
         };
-
-        _db.products.Add(entity);
-        await _db.SaveChangesAsync(cancellationToken);
-
-        var result = new ProductDto(
-            entity.id,
-            entity.category_id,
-            entity.name,
-            entity.description,
-            entity.price,
-            entity.image_url);
-
-        return CreatedAtAction(nameof(GetById), new { id = entity.id }, result);
     }
 
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, ProductUpdateDto dto, CancellationToken cancellationToken)
     {
-        var entity = await _db.products
-            .FirstOrDefaultAsync(p => p.id == id && !p.delete_flag, cancellationToken);
+        var result = await _service.UpdateAsync(id, dto, cancellationToken);
 
-        if (entity is null)
+        return result.Status switch
         {
-            return NotFound();
-        }
-
-        var categoryExists = await _db.categories
-            .AnyAsync(c => c.id == dto.CategoryId && !c.delete_flag, cancellationToken);
-
-        if (!categoryExists)
-        {
-            return BadRequest("Category does not exist.");
-        }
-
-        entity.category_id = dto.CategoryId;
-        entity.name = dto.Name;
-        entity.description = dto.Description;
-        entity.price = dto.Price;
-        entity.image_url = dto.ImageUrl;
-
-        await _db.SaveChangesAsync(cancellationToken);
-        return NoContent();
+            ResultStatus.NotFound => NotFound(),
+            ResultStatus.BadRequest => BadRequest(result.Error),
+            _ => NoContent()
+        };
     }
 
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
-        var entity = await _db.products
-            .FirstOrDefaultAsync(p => p.id == id && !p.delete_flag, cancellationToken);
+        var result = await _service.DeleteAsync(id, cancellationToken);
 
-        if (entity is null)
+        return result.Status switch
         {
-            return NotFound();
-        }
-
-        entity.delete_flag = true;
-        await _db.SaveChangesAsync(cancellationToken);
-
-        return NoContent();
+            ResultStatus.NotFound => NotFound(),
+            _ => NoContent()
+        };
     }
 }

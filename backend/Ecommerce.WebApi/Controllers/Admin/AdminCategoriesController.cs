@@ -1,8 +1,7 @@
-using Ecommerce.Infrastructure.Data;
-using Ecommerce.Infrastructure.Data.Models;
-using Ecommerce.WebApi.Dtos;
+using Ecommerce.Application.Admin.Categories;
+using Ecommerce.Application.Common;
+using Ecommerce.Application.Common.Dtos;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace Ecommerce.WebApi.Controllers.Admin;
 
@@ -10,11 +9,11 @@ namespace Ecommerce.WebApi.Controllers.Admin;
 [Route("api/admin/categories")]
 public sealed class AdminCategoriesController : ControllerBase
 {
-    private readonly EcommerceDbContext _db;
+    private readonly IAdminCategoriesService _service;
 
-    public AdminCategoriesController(EcommerceDbContext db)
+    public AdminCategoriesController(IAdminCategoriesService service)
     {
-        _db = db;
+        _service = service;
     }
 
     [HttpGet]
@@ -24,115 +23,68 @@ public sealed class AdminCategoriesController : ControllerBase
         [FromQuery] string? q = null,
         CancellationToken cancellationToken = default)
     {
-        if (page < 1) page = 1;
-        if (pageSize < 1) pageSize = 10;
-        if (pageSize > 100) pageSize = 100;
-
-        var query = _db.categories
-            .AsNoTracking()
-            .Where(c => !c.delete_flag);
-
-        if (!string.IsNullOrWhiteSpace(q))
+        var result = await _service.GetAllAsync(new GetAdminCategoriesParams
         {
-            var term = q.Trim().ToLowerInvariant();
-            query = query.Where(c =>
-                c.name.ToLower().Contains(term) ||
-                (c.description != null && c.description.ToLower().Contains(term)));
-        }
-
-        var totalCount = await query.CountAsync(cancellationToken);
-
-        var items = await query
-            .OrderByDescending(c => c.id)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .Select(c => new CategoryDto(c.id, c.name, c.description))
-            .ToListAsync(cancellationToken);
+            Page = page,
+            PageSize = pageSize,
+            Query = q
+        }, cancellationToken);
 
         return Ok(new
         {
-            items,
-            totalCount,
-            page,
-            pageSize,
-            query = q
+            items = result.Items,
+            totalCount = result.TotalCount,
+            page = result.Page,
+            pageSize = result.PageSize,
+            query = result.Query
         });
     }
 
     [HttpGet("{id:int}")]
     public async Task<ActionResult<CategoryDto>> GetById(int id, CancellationToken cancellationToken)
     {
-        var item = await _db.categories
-            .AsNoTracking()
-            .Where(c => c.id == id && !c.delete_flag)
-            .Select(c => new CategoryDto(c.id, c.name, c.description))
-            .FirstOrDefaultAsync(cancellationToken);
+        var item = await _service.GetByIdAsync(id, cancellationToken);
 
-        if (item is null)
+        return item.Status switch
         {
-            return NotFound();
-        }
-
-        return Ok(item);
+            ResultStatus.NotFound => NotFound(),
+            _ => Ok(item.Data)
+        };
     }
 
     [HttpPost]
     public async Task<ActionResult<CategoryDto>> Create(CategoryCreateDto dto, CancellationToken cancellationToken)
     {
-        var entity = new category
+        var result = await _service.CreateAsync(dto, cancellationToken);
+
+        return result.Status switch
         {
-            name = dto.Name,
-            description = dto.Description,
-            delete_flag = false
+            _ => CreatedAtAction(nameof(GetById), new { id = result.Data!.Id }, result.Data)
         };
-
-        _db.categories.Add(entity);
-        await _db.SaveChangesAsync(cancellationToken);
-
-        var result = new CategoryDto(entity.id, entity.name, entity.description);
-        return CreatedAtAction(nameof(GetById), new { id = entity.id }, result);
     }
 
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, CategoryUpdateDto dto, CancellationToken cancellationToken)
     {
-        var entity = await _db.categories
-            .FirstOrDefaultAsync(c => c.id == id && !c.delete_flag, cancellationToken);
+        var result = await _service.UpdateAsync(id, dto, cancellationToken);
 
-        if (entity is null)
+        return result.Status switch
         {
-            return NotFound();
-        }
-
-        entity.name = dto.Name;
-        entity.description = dto.Description;
-
-        await _db.SaveChangesAsync(cancellationToken);
-        return NoContent();
+            ResultStatus.NotFound => NotFound(),
+            _ => NoContent()
+        };
     }
 
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
-        var entity = await _db.categories
-            .FirstOrDefaultAsync(c => c.id == id && !c.delete_flag, cancellationToken);
+        var result = await _service.DeleteAsync(id, cancellationToken);
 
-        if (entity is null)
+        return result.Status switch
         {
-            return NotFound();
-        }
-
-        var hasActiveProducts = await _db.products
-            .AnyAsync(p => p.category_id == id && !p.delete_flag, cancellationToken);
-
-        if (hasActiveProducts)
-        {
-            return Conflict("Category has active products. Delete products first.");
-        }
-
-        entity.delete_flag = true;
-        await _db.SaveChangesAsync(cancellationToken);
-
-        return NoContent();
+            ResultStatus.NotFound => NotFound(),
+            ResultStatus.Conflict => Conflict(result.Error),
+            _ => NoContent()
+        };
     }
 }

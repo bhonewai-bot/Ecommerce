@@ -1,8 +1,7 @@
-using Ecommerce.Infrastructure.Data;
-using Ecommerce.Infrastructure.Data.Models;
-using Ecommerce.WebApi.Dtos;
+using Ecommerce.Application.Common;
+using Ecommerce.Application.Common.Dtos;
+using Ecommerce.Application.Public.Products;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace Ecommerce.WebApi.Controllers;
 
@@ -10,11 +9,11 @@ namespace Ecommerce.WebApi.Controllers;
 [Route("api/[controller]")]
 public sealed class ProductsController : ControllerBase
 {
-    private readonly EcommerceDbContext _db;
+    private readonly IPublicProductsService _service;
 
-    public ProductsController(EcommerceDbContext db)
+    public ProductsController(IPublicProductsService service)
     {
-        _db = db;
+        _service = service;
     }
 
     [HttpGet]
@@ -26,84 +25,36 @@ public sealed class ProductsController : ControllerBase
         [FromQuery] string sortOrder = "asc",
         CancellationToken cancellationToken = default)
     {
-        if (page < 1) page = 1;
-        if (pageSize < 1) pageSize = 10;
-        if (pageSize > 100) pageSize = 100;
-
-        var query = _db.products
-            .AsNoTracking()
-            .Where(p => !p.delete_flag && !p.category.delete_flag);
-
-        if (categoryId.HasValue)
-        {
-            query = query.Where(p => p.category_id == categoryId.Value);
-        }
-
-        var totalCount = await query.CountAsync(cancellationToken);
-
-        query = ApplySorting(query, sortBy, sortOrder);
-
-        var items = await query
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .Select(p => new ProductDto(
-                p.id,
-                p.category_id,
-                p.name,
-                p.description,
-                p.price,
-                p.image_url))
-            .ToListAsync(cancellationToken);
-
-        return Ok(new
-        {
-            items,
-            totalCount,
+        var result = await _service.GetAllAsync(
             page,
             pageSize,
             categoryId,
             sortBy,
-            sortOrder
-        });
-    }
+            sortOrder,
+            cancellationToken);
 
-    private static IQueryable<product> ApplySorting(
-        IQueryable<product> query,
-        string sortBy,
-        string sortOrder)
-    {
-        var desc = string.Equals(sortOrder, "desc", StringComparison.OrdinalIgnoreCase);
-        var key = sortBy?.ToLowerInvariant();
-
-        return key switch
+        return Ok(new
         {
-            "name" => desc ? query.OrderByDescending(p => p.name) : query.OrderBy(p => p.name),
-            "price" => desc ? query.OrderByDescending(p => p.price) : query.OrderBy(p => p.price),
-            _ => desc ? query.OrderByDescending(p => p.id) : query.OrderBy(p => p.id)
-        };
+            items = result.Items,
+            totalCount = result.TotalCount,
+            page = result.Page,
+            pageSize = result.PageSize,
+            categoryId = result.CategoryId,
+            sortBy = result.SortBy,
+            sortOrder = result.SortOrder
+        });
     }
 
     [HttpGet("{id:int}")]
     public async Task<ActionResult<ProductDto>> GetById(int id, CancellationToken cancellationToken)
     {
-        var item = await _db.products
-            .AsNoTracking()
-            .Where(p => p.id == id && !p.delete_flag && !p.category.delete_flag)
-            .Select(p => new ProductDto(
-                p.id,
-                p.category_id,
-                p.name,
-                p.description,
-                p.price,
-                p.image_url))
-            .FirstOrDefaultAsync(cancellationToken);
+        var item = await _service.GetByIdAsync(id, cancellationToken);
 
-        if (item is null)
+        return item.Status switch
         {
-            return NotFound();
-        }
-
-        return Ok(item);
+            ResultStatus.NotFound => NotFound(),
+            _ => Ok(item.Data)
+        };
     }
 
 }

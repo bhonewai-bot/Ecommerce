@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace Ecommerce.WebApi.Dtos;
+namespace Ecommerce.Application.Common.Dtos;
 
 public sealed record CategoryDto(int Id, string Name, string? Description);
 

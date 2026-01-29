@@ -1,3 +1,7 @@
+using Ecommerce.Application.Admin.Categories;
+using Ecommerce.Application.Admin.Products;
+using Ecommerce.Application.Public.Categories;
+using Ecommerce.Application.Public.Products;
 using Ecommerce.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -6,6 +10,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddScoped<IAdminProductsService, AdminProductsService>();
+builder.Services.AddScoped<IAdminCategoriesService, AdminCategoriesService>();
+builder.Services.AddScoped<IPublicProductsService, PublicProductsService>();
+builder.Services.AddScoped<IPublicCategoriesService, PublicCategoriesService>();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("FrontendDev", policy =>

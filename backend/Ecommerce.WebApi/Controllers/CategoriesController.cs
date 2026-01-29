@@ -1,7 +1,7 @@
-using Ecommerce.Infrastructure.Data;
-using Ecommerce.WebApi.Dtos;
+using Ecommerce.Application.Common;
+using Ecommerce.Application.Common.Dtos;
+using Ecommerce.Application.Public.Categories;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace Ecommerce.WebApi.Controllers;
 
@@ -9,21 +9,17 @@ namespace Ecommerce.WebApi.Controllers;
 [Route("api/[controller]")]
 public sealed class CategoriesController : ControllerBase
 {
-    private readonly EcommerceDbContext _db;
+    private readonly IPublicCategoriesService _service;
 
-    public CategoriesController(EcommerceDbContext db)
+    public CategoriesController(IPublicCategoriesService service)
     {
-        _db = db;
+        _service = service;
     }
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<CategoryDto>>> GetAll(CancellationToken cancellationToken)
     {
-        var items = await _db.categories
-            .AsNoTracking()
-            .Where(c => !c.delete_flag)
-            .Select(c => new CategoryDto(c.id, c.name, c.description))
-            .ToListAsync(cancellationToken);
+        var items = await _service.GetAllAsync(cancellationToken);
 
         return Ok(items);
     }
@@ -31,18 +27,13 @@ public sealed class CategoriesController : ControllerBase
     [HttpGet("{id:int}")]
     public async Task<ActionResult<CategoryDto>> GetById(int id, CancellationToken cancellationToken)
     {
-        var item = await _db.categories
-            .AsNoTracking()
-            .Where(c => c.id == id && !c.delete_flag)
-            .Select(c => new CategoryDto(c.id, c.name, c.description))
-            .FirstOrDefaultAsync(cancellationToken);
+        var item = await _service.GetByIdAsync(id, cancellationToken);
 
-        if (item is null)
+        return item.Status switch
         {
-            return NotFound();
-        }
-
-        return Ok(item);
+            ResultStatus.NotFound => NotFound(),
+            _ => Ok(item.Data)
+        };
     }
 
 }
