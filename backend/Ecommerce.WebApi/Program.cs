@@ -1,5 +1,6 @@
 using Ecommerce.Application.Admin.Categories;
 using Ecommerce.Application.Admin.Products;
+using Ecommerce.Application.Orders;
 using Ecommerce.Application.Public.Categories;
 using Ecommerce.Application.Public.Products;
 using Ecommerce.Infrastructure;
@@ -14,6 +15,7 @@ builder.Services.AddScoped<IAdminProductsService, AdminProductsService>();
 builder.Services.AddScoped<IAdminCategoriesService, AdminCategoriesService>();
 builder.Services.AddScoped<IPublicProductsService, PublicProductsService>();
 builder.Services.AddScoped<IPublicCategoriesService, PublicCategoriesService>();
+builder.Services.AddScoped<ICheckoutService, CheckoutService>();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("FrontendDev", policy =>

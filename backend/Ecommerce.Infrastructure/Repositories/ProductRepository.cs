@@ -57,6 +57,28 @@ public sealed class ProductRepository : IProductRepository
         return (items, totalCount);
     }
 
+    public async Task<IReadOnlyList<ProductDto>> GetProductsByIdsAsync(
+        IReadOnlyCollection<int> ids,
+        CancellationToken cancellationToken)
+    {
+        if (ids.Count == 0)
+        {
+            return Array.Empty<ProductDto>();
+        }
+
+        return await _db.products
+            .AsNoTracking()
+            .Where(p => ids.Contains(p.id) && !p.delete_flag && !p.category.delete_flag)
+            .Select(p => new ProductDto(
+                p.id,
+                p.category_id,
+                p.name,
+                p.description,
+                p.price,
+                p.image_url))
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<Result<ProductDto>> GetProductByIdAsync(int id, CancellationToken cancellationToken)
     {
         var item = await _db.products
