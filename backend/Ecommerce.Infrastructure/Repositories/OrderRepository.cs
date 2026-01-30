@@ -56,34 +56,30 @@ public sealed class OrderRepository : IOrderRepository
         return Result.Ok();
     }
 
-    public async Task<Result<GetOrderResponse>> GetByPublicIdAsync(Guid publicId, CancellationToken cancellationToken)
+    public async Task<Result<OrderDto>> GetByPublicIdAsync(Guid publicId, CancellationToken cancellationToken)
     {
         var item = await _db.orders
             .AsNoTracking()
             .Where(o => o.public_id == publicId)
-            .Select(o => new GetOrderResponse
-            {
-                PublicId = o.public_id,
-                Status = (OrderStatus)o.status,
-                Currency = o.currency,
-                SubtotalAmount = o.subtotal_amount,
-                DiscountAmount = o.discount_amount,
-                TaxAmount = o.tax_amount,
-                TotalAmount = o.total_amount,
-                Items = o.order_items
+            .Select(o => new OrderDto(
+                o.public_id,
+                (OrderStatus)o.status,
+                o.currency,
+                o.subtotal_amount,
+                o.discount_amount,
+                o.tax_amount,
+                o.total_amount,
+                o.order_items
                     .OrderBy(oi => oi.id)
-                    .Select(oi => new OrderItemDto
-                    {
-                        ProductId = oi.product_id ?? 0,
-                        ProductName = oi.product_name,
-                        UnitPrice = oi.unit_price,
-                        Quantity = oi.quantity,
-                        LineTotal = oi.line_total
-                    })
-                    .ToList()
-            })
+                    .Select(oi => new OrderItemDto(
+                        oi.product_id ?? 0,
+                        oi.product_name,
+                        oi.unit_price,
+                        oi.quantity,
+                        oi.line_total))
+                    .ToList()))
             .FirstOrDefaultAsync(cancellationToken);
 
-        return item is null ? Result<GetOrderResponse>.NotFound() : Result<GetOrderResponse>.Ok(item);
+        return item is null ? Result<OrderDto>.NotFound() : Result<OrderDto>.Ok(item);
     }
 }

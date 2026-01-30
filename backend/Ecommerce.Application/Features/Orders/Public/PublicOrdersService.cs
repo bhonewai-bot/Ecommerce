@@ -13,7 +13,7 @@ public sealed class PublicOrdersService : IPublicOrdersService
         _orders = orders;
     }
 
-    public Task<Result<GetOrderResponse>> GetByPublicIdAsync(Guid publicId, CancellationToken cancellationToken)
+    public Task<Result<OrderDto>> GetByPublicIdAsync(Guid publicId, CancellationToken cancellationToken)
     {
         return _orders.GetByPublicIdAsync(publicId, cancellationToken);
     }

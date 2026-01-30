@@ -59,14 +59,12 @@ public sealed class CheckoutService : ICheckoutService
             var lineTotal = unitPrice * item.Quantity;
             subtotal += lineTotal;
 
-            responseItems.Add(new OrderItemDto
-            {
-                ProductId = product.Id,
-                ProductName = product.Name,
-                UnitPrice = unitPrice,
-                Quantity = item.Quantity,
-                LineTotal = lineTotal
-            });
+            responseItems.Add(new OrderItemDto(
+                product.Id,
+                product.Name,
+                unitPrice,
+                item.Quantity,
+                lineTotal));
 
             commandItems.Add(new CreateOrderItemCommand
             {

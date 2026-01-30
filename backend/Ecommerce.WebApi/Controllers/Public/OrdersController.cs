@@ -17,7 +17,7 @@ public sealed class OrdersController : ControllerBase
     }
 
     [HttpGet("{publicId:guid}")]
-    public async Task<ActionResult<GetOrderResponse>> GetByPublicId(Guid publicId, CancellationToken cancellationToken)
+    public async Task<ActionResult<OrderDto>> GetByPublicId(Guid publicId, CancellationToken cancellationToken)
     {
         var result = await _service.GetByPublicIdAsync(publicId, cancellationToken);
 

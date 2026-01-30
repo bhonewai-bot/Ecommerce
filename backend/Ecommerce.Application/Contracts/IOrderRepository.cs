@@ -7,5 +7,5 @@ namespace Ecommerce.Application.Contracts;
 public interface IOrderRepository
 {
     Task<Result> CreateAsync(CreateOrderCommand command, CancellationToken cancellationToken);
-    Task<Result<GetOrderResponse>> GetByPublicIdAsync(Guid publicId, CancellationToken cancellationToken);
+    Task<Result<OrderDto>> GetByPublicIdAsync(Guid publicId, CancellationToken cancellationToken);
 }
