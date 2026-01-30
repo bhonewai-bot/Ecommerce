@@ -1,9 +1,12 @@
 using Ecommerce.Application.Contracts;
+using Ecommerce.Application.Features.Payments.Public;
 using Ecommerce.Infrastructure.Data;
+using Ecommerce.Infrastructure.Payments;
 using Ecommerce.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Stripe;
 
 namespace Ecommerce.Infrastructure;
 
@@ -18,9 +21,14 @@ public static class DependencyInjection
         services.AddDbContext<EcommerceDbContext>(options =>
             options.UseNpgsql(connectionString));
 
+        var stripeSecretKey = configuration["Stripe:SecretKey"] ?? string.Empty;
+        StripeConfiguration.ApiKey = stripeSecretKey;
+        services.AddSingleton<IStripeClient>(new StripeClient(stripeSecretKey));
+
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<ICategoryRepository, CategoryRepository>();
         services.AddScoped<IOrderRepository, OrderRepository>();
+        services.AddScoped<IPaymentsGateway, StripePaymentsGateway>();
 
         return services;
     }

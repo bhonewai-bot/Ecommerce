@@ -2,6 +2,7 @@ using Ecommerce.Application.Features.Categories.Admin;
 using Ecommerce.Application.Features.Categories.Public;
 using Ecommerce.Application.Features.Checkout;
 using Ecommerce.Application.Features.Orders.Public;
+using Ecommerce.Application.Features.Payments.Public;
 using Ecommerce.Application.Features.Products.Admin;
 using Ecommerce.Application.Features.Products.Public;
 using Ecommerce.Infrastructure;
@@ -18,6 +19,7 @@ builder.Services.AddScoped<IPublicProductsService, PublicProductsService>();
 builder.Services.AddScoped<IPublicCategoriesService, PublicCategoriesService>();
 builder.Services.AddScoped<ICheckoutService, CheckoutService>();
 builder.Services.AddScoped<IPublicOrdersService, PublicOrdersService>();
+builder.Services.AddScoped<IPaymentsService, PaymentsService>();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("FrontendDev", policy =>

@@ -4,6 +4,7 @@ using Ecommerce.Application.Features.Checkout.Commands;
 using Ecommerce.Application.Features.Checkout;
 using Ecommerce.Application.Features.Checkout.Models;
 using Ecommerce.Application.Features.Orders.Models;
+using Ecommerce.Application.Features.Payments.Models;
 using Ecommerce.Infrastructure.Data;
 using Ecommerce.Infrastructure.Data.Models;
 using Microsoft.EntityFrameworkCore;
@@ -81,5 +82,47 @@ public sealed class OrderRepository : IOrderRepository
             .FirstOrDefaultAsync(cancellationToken);
 
         return item is null ? Result<OrderDto>.NotFound() : Result<OrderDto>.Ok(item);
+    }
+
+    public async Task<Result<OrderPaymentInfoDto>> GetPaymentInfoByPublicIdAsync(Guid publicId, CancellationToken cancellationToken)
+    {
+        var item = await _db.orders
+            .AsNoTracking()
+            .Where(o => o.public_id == publicId)
+            .Select(o => new OrderPaymentInfoDto(
+                o.public_id,
+                (OrderStatus)o.status,
+                o.currency,
+                o.total_amount))
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return item is null ? Result<OrderPaymentInfoDto>.NotFound() : Result<OrderPaymentInfoDto>.Ok(item);
+    }
+
+    public async Task<Result> MarkPaidByPublicIdAsync(Guid publicId, CancellationToken cancellationToken)
+    {
+        var entity = await _db.orders
+            .FirstOrDefaultAsync(o => o.public_id == publicId, cancellationToken);
+
+        if (entity is null)
+        {
+            return Result.NotFound();
+        }
+
+        if (entity.status == (short)OrderStatus.Paid)
+        {
+            return Result.Ok();
+        }
+
+        if (entity.status != (short)OrderStatus.PendingPayment)
+        {
+            return Result.Conflict("Order status is not payable.");
+        }
+
+        entity.status = (short)OrderStatus.Paid;
+        entity.updated_at = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync(cancellationToken);
+        return Result.Ok();
     }
 }
