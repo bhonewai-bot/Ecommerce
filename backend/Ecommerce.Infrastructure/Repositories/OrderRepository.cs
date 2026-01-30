@@ -2,6 +2,8 @@ using Ecommerce.Application.Common;
 using Ecommerce.Application.Contracts;
 using Ecommerce.Application.Features.Checkout.Commands;
 using Ecommerce.Application.Features.Checkout;
+using Ecommerce.Application.Features.Checkout.Models;
+using Ecommerce.Application.Features.Orders.Models;
 using Ecommerce.Infrastructure.Data;
 using Ecommerce.Infrastructure.Data.Models;
 using Microsoft.EntityFrameworkCore;
@@ -52,5 +54,36 @@ public sealed class OrderRepository : IOrderRepository
         await transaction.CommitAsync(cancellationToken);
 
         return Result.Ok();
+    }
+
+    public async Task<Result<GetOrderResponse>> GetByPublicIdAsync(Guid publicId, CancellationToken cancellationToken)
+    {
+        var item = await _db.orders
+            .AsNoTracking()
+            .Where(o => o.public_id == publicId)
+            .Select(o => new GetOrderResponse
+            {
+                PublicId = o.public_id,
+                Status = (OrderStatus)o.status,
+                Currency = o.currency,
+                SubtotalAmount = o.subtotal_amount,
+                DiscountAmount = o.discount_amount,
+                TaxAmount = o.tax_amount,
+                TotalAmount = o.total_amount,
+                Items = o.order_items
+                    .OrderBy(oi => oi.id)
+                    .Select(oi => new OrderItemDto
+                    {
+                        ProductId = oi.product_id ?? 0,
+                        ProductName = oi.product_name,
+                        UnitPrice = oi.unit_price,
+                        Quantity = oi.quantity,
+                        LineTotal = oi.line_total
+                    })
+                    .ToList()
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return item is null ? Result<GetOrderResponse>.NotFound() : Result<GetOrderResponse>.Ok(item);
     }
 }
