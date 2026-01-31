@@ -1,20 +1,27 @@
 using Ecommerce.Application.Features.Categories.Admin;
 using Ecommerce.Application.Features.Categories.Public;
 using Ecommerce.Application.Features.Checkout;
+using Ecommerce.Application.Features.Orders.Admin;
 using Ecommerce.Application.Features.Orders.Public;
 using Ecommerce.Application.Features.Payments.Public;
 using Ecommerce.Application.Features.Products.Admin;
 using Ecommerce.Application.Features.Products.Public;
 using Ecommerce.Infrastructure;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddScoped<IAdminProductsService, AdminProductsService>();
 builder.Services.AddScoped<IAdminCategoriesService, AdminCategoriesService>();
+builder.Services.AddScoped<IAdminOrdersService, AdminOrdersService>();
 builder.Services.AddScoped<IPublicProductsService, PublicProductsService>();
 builder.Services.AddScoped<IPublicCategoriesService, PublicCategoriesService>();
 builder.Services.AddScoped<ICheckoutService, CheckoutService>();
