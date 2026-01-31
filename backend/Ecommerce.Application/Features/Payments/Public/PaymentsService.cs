@@ -2,6 +2,7 @@ using Ecommerce.Application.Common;
 using Ecommerce.Application.Contracts;
 using Ecommerce.Application.Features.Checkout;
 using Ecommerce.Application.Features.Payments.Models;
+using Microsoft.Extensions.Logging;
 
 namespace Ecommerce.Application.Features.Payments.Public;
 
@@ -9,11 +10,16 @@ public sealed class PaymentsService : IPaymentsService
 {
     private readonly IOrderRepository _orders;
     private readonly IPaymentsGateway _gateway;
+    private readonly ILogger<PaymentsService> _logger;
 
-    public PaymentsService(IOrderRepository orders, IPaymentsGateway gateway)
+    public PaymentsService(
+        IOrderRepository orders,
+        IPaymentsGateway gateway,
+        ILogger<PaymentsService> logger)
     {
         _orders = orders;
         _gateway = gateway;
+        _logger = logger;
     }
 
     public async Task<Result<PaymentIntentResponse>> CreatePaymentIntentAsync(
@@ -67,6 +73,9 @@ public sealed class PaymentsService : IPaymentsService
         var eventResult = await _gateway.ParseWebhookEventAsync(payload, signatureHeader, cancellationToken);
         if (!eventResult.IsSuccess || eventResult.Data is null)
         {
+            _logger.LogWarning(
+                "Stripe webhook parse failed: {Error}",
+                eventResult.Error ?? "Unknown parse error");
             return eventResult.Status switch
             {
                 ResultStatus.BadRequest => Result.BadRequest(eventResult.Error ?? "Invalid webhook."),
@@ -74,10 +83,16 @@ public sealed class PaymentsService : IPaymentsService
             };
         }
 
+        _logger.LogInformation("Stripe webhook event type: {EventType}", eventResult.Data.Type);
+
         if (!string.Equals(eventResult.Data.Type, "payment_intent.succeeded", StringComparison.Ordinal))
         {
             return Result.Ok();
         }
+
+        _logger.LogInformation(
+            "Stripe webhook is payment_intent.succeeded; orderPublicId metadata: {OrderPublicId}",
+            eventResult.Data.OrderPublicId);
 
         if (string.IsNullOrWhiteSpace(eventResult.Data.OrderPublicId))
         {
@@ -88,6 +103,10 @@ public sealed class PaymentsService : IPaymentsService
         {
             return Result.BadRequest("Invalid orderPublicId metadata.");
         }
+
+        _logger.LogInformation(
+            "Calling MarkPaidByPublicIdAsync for order {OrderPublicId}",
+            publicId);
 
         var updateResult = await _orders.MarkPaidByPublicIdAsync(publicId, cancellationToken);
         if (!updateResult.IsSuccess)

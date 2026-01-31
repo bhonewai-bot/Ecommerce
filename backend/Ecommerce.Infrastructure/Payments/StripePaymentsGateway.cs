@@ -52,7 +52,11 @@ public sealed class StripePaymentsGateway : IPaymentsGateway
     {
         try
         {
-            var stripeEvent = EventUtility.ConstructEvent(payload, signatureHeader, _webhookSecret);
+            var stripeEvent = EventUtility.ConstructEvent(
+                payload, 
+                signatureHeader, 
+                _webhookSecret,
+                throwOnApiVersionMismatch: false);
 
             if (stripeEvent.Data.Object is PaymentIntent intent)
             {
