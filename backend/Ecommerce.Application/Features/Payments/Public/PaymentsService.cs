@@ -62,7 +62,18 @@ public sealed class PaymentsService : IPaymentsService
             };
         }
 
-        return Result<PaymentIntentResponse>.Ok(new PaymentIntentResponse(intentResult.Data));
+        using (_logger.BeginScope(new Dictionary<string, object?>
+               {
+                   ["OrderPublicId"] = infoResult.Data.PublicId,
+                   ["PaymentIntentId"] = intentResult.Data.PaymentIntentId,
+                   ["Amount"] = amount,
+                   ["Currency"] = infoResult.Data.Currency
+               }))
+        {
+            _logger.LogInformation("Payment intent created for order");
+        }
+
+        return Result<PaymentIntentResponse>.Ok(new PaymentIntentResponse(intentResult.Data.ClientSecret));
     }
 
     public async Task<Result> HandleStripeWebhookAsync(
@@ -84,6 +95,17 @@ public sealed class PaymentsService : IPaymentsService
         }
 
         _logger.LogInformation("Stripe webhook event type: {EventType}", eventResult.Data.Type);
+
+        using (_logger.BeginScope(new Dictionary<string, object?>
+               {
+                   ["StripeEventId"] = eventResult.Data.StripeEventId,
+                   ["EventType"] = eventResult.Data.Type,
+                   ["OrderPublicId"] = eventResult.Data.OrderPublicId,
+                   ["PaymentIntentId"] = eventResult.Data.PaymentIntentId
+               }))
+        {
+            _logger.LogInformation("Stripe webhook received");
+        }
 
         if (!string.Equals(eventResult.Data.Type, "payment_intent.succeeded", StringComparison.Ordinal))
         {
@@ -108,6 +130,7 @@ public sealed class PaymentsService : IPaymentsService
             "Calling MarkPaidByPublicIdAsync for order {OrderPublicId}",
             publicId);
 
+        var statusResult = await _orders.GetStatusByPublicIdAsync(publicId, cancellationToken);
         var updateResult = await _orders.MarkPaidByPublicIdAsync(publicId, cancellationToken);
         if (!updateResult.IsSuccess)
         {
@@ -117,6 +140,20 @@ public sealed class PaymentsService : IPaymentsService
                 ResultStatus.Conflict => Result.Conflict(updateResult.Error ?? "Order status is not payable."),
                 _ => Result.BadRequest(updateResult.Error ?? "Unable to update order status.")
             };
+        }
+
+        if (statusResult.IsSuccess && statusResult.Data != OrderStatus.Paid)
+        {
+            using (_logger.BeginScope(new Dictionary<string, object?>
+                   {
+                       ["OrderPublicId"] = publicId,
+                       ["OldStatus"] = statusResult.Data,
+                       ["NewStatus"] = OrderStatus.Paid,
+                       ["Source"] = "stripe_webhook"
+                   }))
+            {
+                _logger.LogInformation("Order status updated");
+            }
         }
 
         return Result.Ok();

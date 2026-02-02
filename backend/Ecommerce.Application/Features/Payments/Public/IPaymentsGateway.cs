@@ -5,7 +5,7 @@ namespace Ecommerce.Application.Features.Payments.Public;
 
 public interface IPaymentsGateway
 {
-    Task<Result<string>> CreatePaymentIntentAsync(
+    Task<Result<StripePaymentIntentDto>> CreatePaymentIntentAsync(
         long amount,
         string currency,
         Guid orderPublicId,

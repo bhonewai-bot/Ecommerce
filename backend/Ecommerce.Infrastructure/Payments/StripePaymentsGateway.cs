@@ -17,7 +17,7 @@ public sealed class StripePaymentsGateway : IPaymentsGateway
         _webhookSecret = configuration["Stripe:WebhookSecret"] ?? string.Empty;
     }
 
-    public async Task<Result<string>> CreatePaymentIntentAsync(
+    public async Task<Result<StripePaymentIntentDto>> CreatePaymentIntentAsync(
         long amount,
         string currency,
         Guid orderPublicId,
@@ -39,10 +39,11 @@ public sealed class StripePaymentsGateway : IPaymentsGateway
         var intent = await service.CreateAsync(options, cancellationToken: cancellationToken);
         if (string.IsNullOrWhiteSpace(intent.ClientSecret))
         {
-            return Result<string>.BadRequest("Stripe client secret is missing.");
+            return Result<StripePaymentIntentDto>.BadRequest("Stripe client secret is missing.");
         }
 
-        return Result<string>.Ok(intent.ClientSecret);
+        return Result<StripePaymentIntentDto>.Ok(
+            new StripePaymentIntentDto(intent.Id, intent.ClientSecret));
     }
 
     public Task<Result<StripeWebhookEventDto>> ParseWebhookEventAsync(
@@ -62,11 +63,11 @@ public sealed class StripePaymentsGateway : IPaymentsGateway
             {
                 intent.Metadata.TryGetValue("orderPublicId", out var publicId);
                 return Task.FromResult(Result<StripeWebhookEventDto>.Ok(
-                    new StripeWebhookEventDto(stripeEvent.Type, publicId)));
+                    new StripeWebhookEventDto(stripeEvent.Id, stripeEvent.Type, publicId, intent.Id)));
             }
 
             return Task.FromResult(Result<StripeWebhookEventDto>.Ok(
-                new StripeWebhookEventDto(stripeEvent.Type, null)));
+                new StripeWebhookEventDto(stripeEvent.Id, stripeEvent.Type, null, null)));
         }
         catch (StripeException ex)
         {
