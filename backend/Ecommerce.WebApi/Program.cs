@@ -8,10 +8,26 @@ using Ecommerce.Application.Features.Products.Admin;
 using Ecommerce.Application.Features.Products.Public;
 using Ecommerce.Infrastructure;
 using System.Text.Json.Serialization;
+using Ecommerce.WebApi.Middlewares;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+Log.Logger = new LoggerConfiguration()
+    .Enrich.FromLogContext()
+    .WriteTo.Console(
+        outputTemplate:
+        "[{Timestamp:HH:mm:ss} {Level:u3}] [{CorrelationId}] {Message:lj}{NewLine}{Exception}")
+    .WriteTo.File("logs/log-.txt",
+        rollingInterval: RollingInterval.Hour,
+        fileSizeLimitBytes: 10485760, // 10MB
+        retainedFileCountLimit: 24)
+    /*.WriteTo.MSSqlServer(
+        connectionString: builder.Configuration.GetConnectionString("DbConnection"),
+        tableName: "Logs",
+        autoCreateSqlTable: true)*/
+    .CreateLogger();
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
@@ -53,6 +69,8 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseCors("FrontendDev");
+
+app.UseMiddleware<CorrelationIdMiddleware>();
 
 app.UseAuthorization();
 
