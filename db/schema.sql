@@ -24,3 +24,54 @@ CREATE TABLE IF NOT EXISTS products (
 CREATE INDEX IF NOT EXISTS ix_products_category_id ON products (category_id);
 CREATE INDEX IF NOT EXISTS ix_products_delete_flag ON products (delete_flag);
 CREATE INDEX IF NOT EXISTS ix_categories_delete_flag ON categories (delete_flag);
+
+CREATE TABLE IF NOT EXISTS orders (
+    id SERIAL PRIMARY KEY,
+    public_id UUID NOT NULL,
+    status SMALLINT NOT NULL,
+    subtotal_amount NUMERIC(12, 2) NOT NULL,
+    discount_amount NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    tax_amount NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    total_amount NUMERIC(12, 2) NOT NULL,
+    currency CHAR(3) NOT NULL,
+    customer_email VARCHAR(255),
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT uq_orders_public_id UNIQUE (public_id)
+);
+
+CREATE INDEX IF NOT EXISTS ix_orders_status ON orders (status);
+CREATE INDEX IF NOT EXISTS ix_orders_created_at ON orders (created_at);
+
+CREATE TABLE IF NOT EXISTS order_items (
+    id SERIAL PRIMARY KEY,
+    order_id INTEGER NOT NULL,
+    product_id INTEGER,
+    product_name VARCHAR(200) NOT NULL,
+    unit_price NUMERIC(12, 2) NOT NULL,
+    quantity INTEGER NOT NULL,
+    line_total NUMERIC(12, 2) NOT NULL,
+    CONSTRAINT fk_order_items_orders
+        FOREIGN KEY (order_id)
+        REFERENCES orders (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_order_items_products
+        FOREIGN KEY (product_id)
+        REFERENCES products (id)
+        ON DELETE SET NULL,
+    CONSTRAINT ck_order_items_quantity_positive
+        CHECK (quantity > 0)
+);
+
+CREATE INDEX IF NOT EXISTS ix_order_items_order_id ON order_items (order_id);
+CREATE INDEX IF NOT EXISTS ix_order_items_product_id ON order_items (product_id);
+
+CREATE TABLE IF NOT EXISTS processed_stripe_events (
+    id SERIAL PRIMARY KEY,
+    stripe_event_id TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    order_public_id UUID NULL,
+    payment_intent_id TEXT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT uq_processed_stripe_events_stripe_event_id UNIQUE (stripe_event_id)
+);
