@@ -8,7 +8,7 @@ namespace Ecommerce.WebApi.Middlewares;
 public sealed class CorrelationIdMiddleware
 {
     private const string HeaderName = "X-Correlation-ID";
-    private const string LogProperty = "CorrelationId";
+    private const string ItemKey = "CorrelationId";
     private readonly RequestDelegate _next;
 
     public CorrelationIdMiddleware(RequestDelegate next)
@@ -23,12 +23,12 @@ public sealed class CorrelationIdMiddleware
             : Activity.Current?.TraceId.ToString()
             ?? Guid.NewGuid().ToString();
         
-        context.Items[HeaderName] = correlationId;
+        context.Items[ItemKey] = correlationId;
         context.Response.Headers[HeaderName] = correlationId;
 
         var traceId = Activity.Current?.TraceId.ToString();
         
-        using (LogContext.PushProperty(LogProperty, correlationId))
+        using (LogContext.PushProperty(ItemKey, correlationId))
         using (LogContext.PushProperty("TraceId", traceId))
         {
             await _next(context);

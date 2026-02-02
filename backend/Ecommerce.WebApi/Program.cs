@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Ecommerce.Application.Features.Categories.Admin;
 using Ecommerce.Application.Features.Categories.Public;
 using Ecommerce.Application.Features.Checkout;
@@ -21,13 +22,13 @@ Log.Logger = new LoggerConfiguration()
         "[{Timestamp:HH:mm:ss} {Level:u3}] [{CorrelationId}] {Message:lj}{NewLine}{Exception}")
     .WriteTo.File("logs/log-.txt",
         rollingInterval: RollingInterval.Hour,
+        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] [{CorrelationId}] {Message:lj}{NewLine}{Exception}",
         fileSizeLimitBytes: 10485760, // 10MB
         retainedFileCountLimit: 24)
-    /*.WriteTo.MSSqlServer(
-        connectionString: builder.Configuration.GetConnectionString("DbConnection"),
-        tableName: "Logs",
-        autoCreateSqlTable: true)*/
+    
     .CreateLogger();
+
+builder.Host.UseSerilog();
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
@@ -71,6 +72,17 @@ if (!app.Environment.IsDevelopment())
 app.UseCors("FrontendDev");
 
 app.UseMiddleware<CorrelationIdMiddleware>();
+
+app.UseSerilogRequestLogging(options =>
+{
+    options.EnrichDiagnosticContext = (diagnostic, context) =>
+    {
+        var correlationId = context.Items.TryGetValue("CorrelationId", out var value) ? value?.ToString() : null;
+        diagnostic.Set("CorrelationId", correlationId);
+        diagnostic.Set("TraceId", Activity.Current?.TraceId.ToString());
+        diagnostic.Set("UserAgent", context.Request.Headers.UserAgent.ToString());
+    };
+});
 
 app.UseAuthorization();
 
