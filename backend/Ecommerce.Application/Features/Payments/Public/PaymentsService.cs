@@ -10,15 +10,18 @@ public sealed class PaymentsService : IPaymentsService
 {
     private readonly IOrderRepository _orders;
     private readonly IPaymentsGateway _gateway;
+    private readonly IStripeEventDeduper _deduper;
     private readonly ILogger<PaymentsService> _logger;
 
     public PaymentsService(
         IOrderRepository orders,
         IPaymentsGateway gateway,
+        IStripeEventDeduper deduper,
         ILogger<PaymentsService> logger)
     {
         _orders = orders;
         _gateway = gateway;
+        _deduper = deduper;
         _logger = logger;
     }
 
@@ -84,17 +87,12 @@ public sealed class PaymentsService : IPaymentsService
         var eventResult = await _gateway.ParseWebhookEventAsync(payload, signatureHeader, cancellationToken);
         if (!eventResult.IsSuccess || eventResult.Data is null)
         {
-            _logger.LogWarning(
-                "Stripe webhook parse failed: {Error}",
-                eventResult.Error ?? "Unknown parse error");
             return eventResult.Status switch
             {
                 ResultStatus.BadRequest => Result.BadRequest(eventResult.Error ?? "Invalid webhook."),
                 _ => Result.BadRequest(eventResult.Error ?? "Invalid webhook.")
             };
         }
-
-        _logger.LogInformation("Stripe webhook event type: {EventType}", eventResult.Data.Type);
 
         using (_logger.BeginScope(new Dictionary<string, object?>
                {
@@ -107,14 +105,37 @@ public sealed class PaymentsService : IPaymentsService
             _logger.LogInformation("Stripe webhook received");
         }
 
+        Guid? parsedOrderPublicId = null;
+        if (Guid.TryParse(eventResult.Data.OrderPublicId, out var parsedValue))
+        {
+            parsedOrderPublicId = parsedValue;
+        }
+
+        var isFirstTime = await _deduper.TryMarkProcessedAsync(
+            eventResult.Data.StripeEventId,
+            eventResult.Data.Type,
+            parsedOrderPublicId,
+            eventResult.Data.PaymentIntentId,
+            cancellationToken);
+
+        if (!isFirstTime)
+        {
+            using (_logger.BeginScope(new Dictionary<string, object?>
+                   {
+                       ["StripeEventId"] = eventResult.Data.StripeEventId,
+                       ["EventType"] = eventResult.Data.Type
+                   }))
+            {
+                _logger.LogInformation("Stripe webhook duplicate ignored");
+            }
+
+            return Result.Ok();
+        }
+
         if (!string.Equals(eventResult.Data.Type, "payment_intent.succeeded", StringComparison.Ordinal))
         {
             return Result.Ok();
         }
-
-        _logger.LogInformation(
-            "Stripe webhook is payment_intent.succeeded; orderPublicId metadata: {OrderPublicId}",
-            eventResult.Data.OrderPublicId);
 
         if (string.IsNullOrWhiteSpace(eventResult.Data.OrderPublicId))
         {
@@ -125,10 +146,6 @@ public sealed class PaymentsService : IPaymentsService
         {
             return Result.BadRequest("Invalid orderPublicId metadata.");
         }
-
-        _logger.LogInformation(
-            "Calling MarkPaidByPublicIdAsync for order {OrderPublicId}",
-            publicId);
 
         var statusResult = await _orders.GetStatusByPublicIdAsync(publicId, cancellationToken);
         var updateResult = await _orders.MarkPaidByPublicIdAsync(publicId, cancellationToken);

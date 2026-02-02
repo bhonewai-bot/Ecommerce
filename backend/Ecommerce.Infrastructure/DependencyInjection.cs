@@ -29,6 +29,7 @@ public static class DependencyInjection
         services.AddScoped<ICategoryRepository, CategoryRepository>();
         services.AddScoped<IOrderRepository, OrderRepository>();
         services.AddScoped<IPaymentsGateway, StripePaymentsGateway>();
+        services.AddScoped<IStripeEventDeduper, StripeEventDeduper>();
 
         return services;
     }

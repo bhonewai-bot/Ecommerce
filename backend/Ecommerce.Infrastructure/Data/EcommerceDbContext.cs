@@ -20,6 +20,8 @@ public partial class EcommerceDbContext : DbContext
 
     public virtual DbSet<product> products { get; set; }
 
+    public virtual DbSet<processed_stripe_event> processed_stripe_events { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<category>(entity =>
@@ -92,6 +94,16 @@ public partial class EcommerceDbContext : DbContext
                 .HasForeignKey(d => d.category_id)
                 .OnDelete(DeleteBehavior.Restrict)
                 .HasConstraintName("fk_products_categories");
+        });
+
+        modelBuilder.Entity<processed_stripe_event>(entity =>
+        {
+            entity.HasKey(e => e.id).HasName("processed_stripe_events_pkey");
+
+            entity.HasIndex(e => e.stripe_event_id, "uq_processed_stripe_events_stripe_event_id")
+                .IsUnique();
+
+            entity.Property(e => e.created_at).HasDefaultValueSql("now()");
         });
 
         OnModelCreatingPartial(modelBuilder);
