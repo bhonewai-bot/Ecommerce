@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CardElement, Elements, useElements, useStripe } from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
 import { useNavigate, useParams } from "react-router-dom";
@@ -68,7 +68,7 @@ export default function PayPage() {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [error, setError] = useState("");
   const intentMutation = useCreatePaymentIntent();
-  const requestedRef = useRef(false);
+  const [didRequest, setDidRequest] = useState(false);
 
   const canLoadStripe = useMemo(
     () => Boolean(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY),
@@ -76,15 +76,28 @@ export default function PayPage() {
   );
 
   useEffect(() => {
-    if (!publicId || requestedRef.current) return;
-    requestedRef.current = true;
+    if (!publicId) return;
+    setClientSecret(null);
+    setError("");
+    setDidRequest(false);
+  }, [publicId]);
+
+  useEffect(() => {
+    if (!publicId) return;
+    if (clientSecret || intentMutation.isPending || didRequest) return;
+
+    setDidRequest(true);
     intentMutation.mutate(publicId, {
-      onSuccess: (data) => setClientSecret(data.clientSecret),
+      onSuccess: (data) => {
+        setClientSecret(data.clientSecret);
+        setDidRequest(false);
+      },
       onError: (err) => {
         setError(err instanceof Error ? err.message : "Failed to start payment.");
+        setDidRequest(false);
       },
     });
-  }, [publicId, intentMutation]);
+  }, [publicId, clientSecret, intentMutation, didRequest]);
 
   if (!publicId) {
     return <div className="state error">Missing order ID.</div>;
