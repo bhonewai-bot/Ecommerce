@@ -11,6 +11,7 @@ using Ecommerce.Infrastructure;
 using System.Text.Json.Serialization;
 using Ecommerce.WebApi.Middlewares;
 using Serilog;
+using Microsoft.Extensions.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,6 +28,16 @@ Log.Logger = new LoggerConfiguration()
         retainedFileCountLimit: 24)
     
     .CreateLogger();
+
+var stripeSecretKey = builder.Configuration["Stripe:SecretKey"];
+if (string.IsNullOrWhiteSpace(stripeSecretKey) ||
+    stripeSecretKey.Contains("REPLACE_ME", StringComparison.OrdinalIgnoreCase))
+{
+    using var loggerFactory = LoggerFactory.Create(logging => logging.AddSerilog(Log.Logger));
+    var logger = loggerFactory.CreateLogger("Startup");
+    logger.LogError("Stripe:SecretKey is missing or placeholder.");
+    throw new InvalidOperationException("Stripe:SecretKey is missing or placeholder.");
+}
 
 builder.Host.UseSerilog();
 

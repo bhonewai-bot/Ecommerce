@@ -22,7 +22,6 @@ public static class DependencyInjection
             options.UseNpgsql(connectionString));
 
         var stripeSecretKey = configuration["Stripe:SecretKey"] ?? string.Empty;
-        StripeConfiguration.ApiKey = stripeSecretKey;
         services.AddSingleton<IStripeClient>(new StripeClient(stripeSecretKey));
 
         services.AddScoped<IProductRepository, ProductRepository>();
@@ -30,7 +29,6 @@ public static class DependencyInjection
         services.AddScoped<IOrderRepository, OrderRepository>();
         services.AddScoped<IPaymentsGateway, StripePaymentsGateway>();
         services.AddScoped<IStripeEventDeduper, StripeEventDeduper>();
-
         return services;
     }
 }

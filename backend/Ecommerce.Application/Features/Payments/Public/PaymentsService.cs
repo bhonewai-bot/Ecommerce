@@ -73,7 +73,15 @@ public sealed class PaymentsService : IPaymentsService
                    ["Currency"] = infoResult.Data.Currency
                }))
         {
-            _logger.LogInformation("Payment intent created for order");
+            _logger.LogInformation(
+                "payment.intent_created {@Audit}",
+                new
+                {
+                    OrderPublicId = infoResult.Data.PublicId,
+                    PaymentIntentId = intentResult.Data.PaymentIntentId,
+                    Amount = amount,
+                    Currency = infoResult.Data.Currency
+                });
         }
 
         return Result<PaymentIntentResponse>.Ok(new PaymentIntentResponse(intentResult.Data.ClientSecret));
@@ -102,7 +110,15 @@ public sealed class PaymentsService : IPaymentsService
                    ["PaymentIntentId"] = eventResult.Data.PaymentIntentId
                }))
         {
-            _logger.LogInformation("Stripe webhook received");
+            _logger.LogInformation(
+                "stripe.webhook_received {@Audit}",
+                new
+                {
+                    StripeEventId = eventResult.Data.StripeEventId,
+                    EventType = eventResult.Data.Type,
+                    OrderPublicId = eventResult.Data.OrderPublicId,
+                    PaymentIntentId = eventResult.Data.PaymentIntentId
+                });
         }
 
         Guid? parsedOrderPublicId = null;
@@ -126,7 +142,13 @@ public sealed class PaymentsService : IPaymentsService
                        ["EventType"] = eventResult.Data.Type
                    }))
             {
-                _logger.LogInformation("Stripe webhook duplicate ignored");
+                _logger.LogInformation(
+                    "stripe.webhook_duplicate_ignored {@Audit}",
+                    new
+                    {
+                        StripeEventId = eventResult.Data.StripeEventId,
+                        EventType = eventResult.Data.Type
+                    });
             }
 
             return Result.Ok();
@@ -159,6 +181,21 @@ public sealed class PaymentsService : IPaymentsService
             };
         }
 
+        using (_logger.BeginScope(new Dictionary<string, object?>
+               {
+                   ["OrderPublicId"] = publicId,
+                   ["PaymentIntentId"] = eventResult.Data.PaymentIntentId
+               }))
+        {
+            _logger.LogInformation(
+                "payment.succeeded {@Audit}",
+                new
+                {
+                    OrderPublicId = publicId,
+                    PaymentIntentId = eventResult.Data.PaymentIntentId
+                });
+        }
+
         if (statusResult.IsSuccess && statusResult.Data != OrderStatus.Paid)
         {
             using (_logger.BeginScope(new Dictionary<string, object?>
@@ -169,7 +206,15 @@ public sealed class PaymentsService : IPaymentsService
                        ["Source"] = "stripe_webhook"
                    }))
             {
-                _logger.LogInformation("Order status updated");
+                _logger.LogInformation(
+                    "order.status_changed {@Audit}",
+                    new
+                    {
+                        OrderPublicId = publicId,
+                        OldStatus = statusResult.Data,
+                        NewStatus = OrderStatus.Paid,
+                        Source = "stripe_webhook"
+                    });
             }
         }
 

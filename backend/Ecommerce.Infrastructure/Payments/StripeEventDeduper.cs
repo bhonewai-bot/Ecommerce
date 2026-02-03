@@ -21,19 +21,14 @@ public sealed class StripeEventDeduper : IStripeEventDeduper
         string? paymentIntentId,
         CancellationToken cancellationToken)
     {
-        var result = await _db.processed_stripe_events
-            .FromSqlInterpolated($@"
-                INSERT INTO processed_stripe_events
-                    (stripe_event_id, event_type, order_public_id, payment_intent_id)
-                VALUES
-                    ({stripeEventId}, {eventType}, {orderPublicId}, {paymentIntentId})
-                ON CONFLICT (stripe_event_id) DO NOTHING
-                RETURNING id
-            ")
-            .AsNoTracking()
-            .Select(e => e.id)
-            .FirstOrDefaultAsync(cancellationToken);
+        var rows = await _db.Database.ExecuteSqlInterpolatedAsync($@"
+            INSERT INTO processed_stripe_events
+                (stripe_event_id, event_type, order_public_id, payment_intent_id)
+            VALUES
+                ({stripeEventId}, {eventType}, {orderPublicId}, {paymentIntentId})
+            ON CONFLICT (stripe_event_id) DO NOTHING
+        ", cancellationToken);
 
-        return result != 0;
+        return rows > 0;
     }
 }
