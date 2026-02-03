@@ -20,20 +20,15 @@ public sealed class IdempotencyStore : IIdempotencyStore
         string requestHash,
         CancellationToken cancellationToken)
     {
-        var result = await _db.idempotency_keys
-            .FromSqlInterpolated($@"
-                INSERT INTO idempotency_keys
-                    (idempotency_key, scope, request_hash, status)
-                VALUES
-                    ({key}, {scope}, {requestHash}, {"processing"})
-                ON CONFLICT (idempotency_key, scope) DO NOTHING
-                RETURNING id
-            ")
-            .AsNoTracking()
-            .Select(e => e.id)
-            .FirstOrDefaultAsync(cancellationToken);
+        var rows = await _db.Database.ExecuteSqlInterpolatedAsync($@"
+            INSERT INTO idempotency_keys
+                (idempotency_key, scope, request_hash, status)
+            VALUES
+                ({key}, {scope}, {requestHash}, {"processing"})
+            ON CONFLICT (idempotency_key, scope) DO NOTHING
+        ", cancellationToken);
 
-        if (result != 0)
+        if (rows == 1)
         {
             return (true, null);
         }
