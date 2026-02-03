@@ -1,6 +1,7 @@
 using Ecommerce.Application.Common;
 using Ecommerce.Application.Features.Products.Models;
 using Ecommerce.Application.Features.Products.Public;
+using Ecommerce.WebApi.Errors;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Ecommerce.WebApi.Controllers.Public;
@@ -53,7 +54,7 @@ public sealed class ProductsController : ControllerBase
 
         return item.Status switch
         {
-            ResultStatus.NotFound => NotFound(),
+            ResultStatus.NotFound => this.ApiNotFound(),
             _ => Ok(item.Data)
         };
     }

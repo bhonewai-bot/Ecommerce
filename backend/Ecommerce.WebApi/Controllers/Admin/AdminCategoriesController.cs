@@ -1,6 +1,7 @@
 using Ecommerce.Application.Common;
 using Ecommerce.Application.Features.Categories.Admin;
 using Ecommerce.Application.Features.Categories.Models;
+using Ecommerce.WebApi.Errors;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Ecommerce.WebApi.Controllers.Admin;
@@ -47,7 +48,7 @@ public sealed class AdminCategoriesController : ControllerBase
 
         return item.Status switch
         {
-            ResultStatus.NotFound => NotFound(),
+            ResultStatus.NotFound => this.ApiNotFound(),
             _ => Ok(item.Data)
         };
     }
@@ -59,6 +60,8 @@ public sealed class AdminCategoriesController : ControllerBase
 
         return result.Status switch
         {
+            ResultStatus.BadRequest => this.ApiBadRequest(result.Error),
+            ResultStatus.Conflict => this.ApiConflict(result.Error),
             _ => CreatedAtAction(nameof(GetById), new { id = result.Data!.Id }, result.Data)
         };
     }
@@ -70,7 +73,8 @@ public sealed class AdminCategoriesController : ControllerBase
 
         return result.Status switch
         {
-            ResultStatus.NotFound => NotFound(),
+            ResultStatus.NotFound => this.ApiNotFound(),
+            ResultStatus.BadRequest => this.ApiBadRequest(result.Error),
             _ => NoContent()
         };
     }
@@ -82,8 +86,8 @@ public sealed class AdminCategoriesController : ControllerBase
 
         return result.Status switch
         {
-            ResultStatus.NotFound => NotFound(),
-            ResultStatus.Conflict => Conflict(result.Error),
+            ResultStatus.NotFound => this.ApiNotFound(),
+            ResultStatus.Conflict => this.ApiConflict(result.Error),
             _ => NoContent()
         };
     }

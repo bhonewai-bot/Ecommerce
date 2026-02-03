@@ -2,6 +2,7 @@ using Ecommerce.Application.Common;
 using Ecommerce.Application.Features.Payments.Models;
 using Ecommerce.Application.Features.Payments.Public;
 using Ecommerce.Application.Features.Idempotency;
+using Ecommerce.WebApi.Errors;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Ecommerce.WebApi.Controllers.Public;
@@ -26,7 +27,7 @@ public sealed class PaymentsController : ControllerBase
     {
         if (!HttpContext.Items.TryGetValue("Idempotency-Key", out var keyObj) || keyObj is not string key || string.IsNullOrWhiteSpace(key))
         {
-            return BadRequest("Idempotency-Key header is required.");
+            return this.ApiBadRequest("Idempotency-Key header is required.", ApiErrorCodes.IdempotencyKeyRequired);
         }
 
         var idempotencyResult = await _idempotency.ExecuteAsync(
@@ -39,9 +40,9 @@ public sealed class PaymentsController : ControllerBase
 
         return idempotencyResult.Result.Status switch
         {
-            ResultStatus.NotFound => NotFound(),
-            ResultStatus.Conflict => Conflict(idempotencyResult.Result.Error),
-            ResultStatus.BadRequest => BadRequest(idempotencyResult.Result.Error),
+            ResultStatus.NotFound => this.ApiNotFound(),
+            ResultStatus.Conflict => this.ApiConflict(idempotencyResult.Result.Error),
+            ResultStatus.BadRequest => this.ApiBadRequest(idempotencyResult.Result.Error),
             _ => StatusCode(idempotencyResult.StatusCode, idempotencyResult.Result.Data)
         };
     }

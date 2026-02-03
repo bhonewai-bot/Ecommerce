@@ -3,6 +3,7 @@ using Ecommerce.Application.Features.Checkout;
 using Ecommerce.Application.Features.Idempotency;
 using Ecommerce.Application.Features.Orders.Admin;
 using Ecommerce.Application.Features.Orders.Models;
+using Ecommerce.WebApi.Errors;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Ecommerce.WebApi.Controllers.Admin;
@@ -51,7 +52,7 @@ public sealed class AdminOrdersController : ControllerBase
 
         return result.Status switch
         {
-            ResultStatus.NotFound => NotFound(),
+            ResultStatus.NotFound => this.ApiNotFound(),
             _ => Ok(result.Data)
         };
     }
@@ -76,9 +77,9 @@ public sealed class AdminOrdersController : ControllerBase
 
             return idempotencyResult.Result.Status switch
             {
-                ResultStatus.NotFound => NotFound(),
-                ResultStatus.Conflict => Conflict(idempotencyResult.Result.Error),
-                ResultStatus.BadRequest => BadRequest(idempotencyResult.Result.Error),
+                ResultStatus.NotFound => this.ApiNotFound(),
+                ResultStatus.Conflict => this.ApiConflict(idempotencyResult.Result.Error),
+                ResultStatus.BadRequest => this.ApiBadRequest(idempotencyResult.Result.Error),
                 _ => StatusCode(idempotencyResult.StatusCode)
             };
         }
@@ -87,9 +88,9 @@ public sealed class AdminOrdersController : ControllerBase
 
         return result.Status switch
         {
-            ResultStatus.NotFound => NotFound(),
-            ResultStatus.Conflict => Conflict(result.Error),
-            ResultStatus.BadRequest => BadRequest(result.Error),
+            ResultStatus.NotFound => this.ApiNotFound(),
+            ResultStatus.Conflict => this.ApiConflict(result.Error),
+            ResultStatus.BadRequest => this.ApiBadRequest(result.Error),
             _ => NoContent()
         };
     }

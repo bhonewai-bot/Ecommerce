@@ -1,5 +1,6 @@
 using Ecommerce.Application.Common;
 using Ecommerce.Application.Features.Payments.Public;
+using Ecommerce.WebApi.Errors;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 
@@ -30,9 +31,9 @@ public sealed class StripeWebhooksController : ControllerBase
 
         return result.Status switch
         {
-            ResultStatus.BadRequest => BadRequest(result.Error),
-            ResultStatus.NotFound => NotFound(),
-            ResultStatus.Conflict => Conflict(result.Error),
+            ResultStatus.BadRequest => this.ApiBadRequest(result.Error),
+            ResultStatus.NotFound => this.ApiNotFound(),
+            ResultStatus.Conflict => this.ApiConflict(result.Error),
             _ => Ok()
         };
     }

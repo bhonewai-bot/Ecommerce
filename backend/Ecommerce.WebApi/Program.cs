@@ -10,9 +10,12 @@ using Ecommerce.Application.Features.Products.Admin;
 using Ecommerce.Application.Features.Products.Public;
 using Ecommerce.Infrastructure;
 using System.Text.Json.Serialization;
+using Ecommerce.WebApi.Errors;
 using Ecommerce.WebApi.Middlewares;
 using Serilog;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,11 +25,11 @@ Log.Logger = new LoggerConfiguration()
     .WriteTo.Console(
         outputTemplate:
         "[{Timestamp:HH:mm:ss} {Level:u3}] [{CorrelationId}] {Message:lj}{NewLine}{Exception}")
-    .WriteTo.File("logs/log-.txt",
+    /*.WriteTo.File("logs/log-.txt",
         rollingInterval: RollingInterval.Hour,
         outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] [{CorrelationId}] {Message:lj}{NewLine}{Exception}",
         fileSizeLimitBytes: 10485760, // 10MB
-        retainedFileCountLimit: 24)
+        retainedFileCountLimit: 24)*/
     
     .CreateLogger();
 
@@ -46,6 +49,14 @@ builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    })
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var error = ApiErrorFactory.ValidationFailed(context.ModelState);
+            return new BadRequestObjectResult(error);
+        };
     });
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddScoped<IAdminProductsService, AdminProductsService>();
@@ -81,6 +92,23 @@ if (!app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
 }
+
+app.UseExceptionHandler(errorApp =>
+{
+    errorApp.Run(async context =>
+    {
+        var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("GlobalException");
+        var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
+        if (exception is not null)
+        {
+            logger.LogError(exception, "Unhandled exception");
+        }
+
+        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        context.Response.ContentType = "application/json";
+        await context.Response.WriteAsJsonAsync(ApiErrorFactory.Unexpected());
+    });
+});
 
 app.UseCors("FrontendDev");
 
