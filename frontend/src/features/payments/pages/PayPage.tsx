@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import type { FormEvent } from "react";
 import { CardElement, Elements, useElements, useStripe } from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
 import { useNavigate, useParams } from "react-router-dom";
@@ -15,7 +16,7 @@ function PaymentForm({ publicId, clientSecret }: { publicId: string; clientSecre
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!stripe || !elements) return;
 
@@ -69,6 +70,7 @@ export default function PayPage() {
   const [error, setError] = useState("");
   const intentMutation = useCreatePaymentIntent();
   const [requestedPublicId, setRequestedPublicId] = useState<string | null>(null);
+  const [idempotencyKey, setIdempotencyKey] = useState<string | null>(null);
   const resolvedClientSecret =
     clientSecret ?? intentMutation.data?.clientSecret ?? null;
 
@@ -82,6 +84,7 @@ export default function PayPage() {
     setClientSecret(null);
     setError("");
     setRequestedPublicId(null);
+    setIdempotencyKey(crypto.randomUUID());
   }, [publicId]);
 
   useEffect(() => {
@@ -94,9 +97,10 @@ export default function PayPage() {
     if (!publicId) return;
     if (requestedPublicId === publicId) return;
     if (intentMutation.isPending) return;
+    if (!idempotencyKey) return;
 
     setRequestedPublicId(publicId);
-    intentMutation.mutate(publicId, {
+    intentMutation.mutate({ publicId, idempotencyKey }, {
       onSuccess: (data) => {
         setClientSecret(data.clientSecret);
       },
@@ -104,7 +108,7 @@ export default function PayPage() {
         setError(err instanceof Error ? err.message : "Failed to start payment.");
       },
     });
-  }, [publicId, requestedPublicId, intentMutation]);
+  }, [publicId, requestedPublicId, intentMutation, idempotencyKey]);
 
   if (!publicId) {
     return <div className="state error">Missing order ID.</div>;

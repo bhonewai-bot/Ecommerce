@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCheckout } from "../checkout/queries";
 import { clearCart, removeItem, updateQuantity } from "./store";
@@ -14,6 +14,7 @@ export default function CartPage() {
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const checkoutMutation = useCheckout();
+  const idempotencyKeyRef = useRef<string | null>(null);
 
   const summaryLabel = useMemo(() => {
     if (!count) return "Cart is empty";
@@ -23,17 +24,24 @@ export default function CartPage() {
   const handleCheckout = () => {
     if (!items.length) return;
     setError("");
+    if (!idempotencyKeyRef.current) {
+      idempotencyKeyRef.current = crypto.randomUUID();
+    }
     checkoutMutation.mutate(
       {
-        customerEmail: email.trim() ? email.trim() : undefined,
-        items: items.map((item) => ({
-          productId: item.productId,
-          quantity: item.quantity,
-        })),
+        input: {
+          customerEmail: email.trim() ? email.trim() : undefined,
+          items: items.map((item) => ({
+            productId: item.productId,
+            quantity: item.quantity,
+          })),
+        },
+        idempotencyKey: idempotencyKeyRef.current,
       },
       {
         onSuccess: (response) => {
           clearCart();
+          idempotencyKeyRef.current = null;
           navigate(`/pay/${response.publicId}`);
         },
         onError: (err) => {

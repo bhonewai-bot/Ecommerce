@@ -8,10 +8,10 @@ export function useCart() {
   useEffect(() => {
     const handleUpdate = () => setItems(getCart().items);
     window.addEventListener("storage", handleUpdate);
-    window.addEventListener("cart:updated", handleUpdate as EventListener);
+    window.addEventListener("cart:updated", handleUpdate);
     return () => {
       window.removeEventListener("storage", handleUpdate);
-      window.removeEventListener("cart:updated", handleUpdate as EventListener);
+      window.removeEventListener("cart:updated", handleUpdate);
     };
   }, []);
 
