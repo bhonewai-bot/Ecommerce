@@ -68,7 +68,9 @@ export default function PayPage() {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [error, setError] = useState("");
   const intentMutation = useCreatePaymentIntent();
-  const [didRequest, setDidRequest] = useState(false);
+  const [requestedPublicId, setRequestedPublicId] = useState<string | null>(null);
+  const resolvedClientSecret =
+    clientSecret ?? intentMutation.data?.clientSecret ?? null;
 
   const canLoadStripe = useMemo(
     () => Boolean(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY),
@@ -79,25 +81,30 @@ export default function PayPage() {
     if (!publicId) return;
     setClientSecret(null);
     setError("");
-    setDidRequest(false);
+    setRequestedPublicId(null);
   }, [publicId]);
 
   useEffect(() => {
-    if (!publicId) return;
-    if (clientSecret || intentMutation.isPending || didRequest) return;
+    if (!intentMutation.data?.clientSecret) return;
+    if (clientSecret === intentMutation.data.clientSecret) return;
+    setClientSecret(intentMutation.data.clientSecret);
+  }, [intentMutation.data?.clientSecret, clientSecret]);
 
-    setDidRequest(true);
+  useEffect(() => {
+    if (!publicId) return;
+    if (requestedPublicId === publicId) return;
+    if (intentMutation.isPending) return;
+
+    setRequestedPublicId(publicId);
     intentMutation.mutate(publicId, {
       onSuccess: (data) => {
         setClientSecret(data.clientSecret);
-        setDidRequest(false);
       },
       onError: (err) => {
         setError(err instanceof Error ? err.message : "Failed to start payment.");
-        setDidRequest(false);
       },
     });
-  }, [publicId, clientSecret, intentMutation, didRequest]);
+  }, [publicId, requestedPublicId, intentMutation]);
 
   if (!publicId) {
     return <div className="state error">Missing order ID.</div>;
@@ -118,12 +125,12 @@ export default function PayPage() {
         <p className="subtitle">Complete your payment to finalize the order.</p>
       </div>
       {error && <div className="state error">{error}</div>}
-      {!clientSecret && !error && (
+      {!resolvedClientSecret && !error && (
         <div className="state">Preparing payment intent...</div>
       )}
-      {clientSecret && (
+      {resolvedClientSecret && (
         <Elements stripe={stripePromise}>
-          <PaymentForm publicId={publicId} clientSecret={clientSecret} />
+          <PaymentForm publicId={publicId} clientSecret={resolvedClientSecret} />
         </Elements>
       )}
     </section>
