@@ -20,6 +20,8 @@ public partial class EcommerceDbContext : DbContext
 
     public virtual DbSet<product> products { get; set; }
 
+    public virtual DbSet<idempotency_key> idempotency_keys { get; set; }
+
     public virtual DbSet<processed_stripe_event> processed_stripe_events { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -94,6 +96,17 @@ public partial class EcommerceDbContext : DbContext
                 .HasForeignKey(d => d.category_id)
                 .OnDelete(DeleteBehavior.Restrict)
                 .HasConstraintName("fk_products_categories");
+        });
+
+        modelBuilder.Entity<idempotency_key>(entity =>
+        {
+            entity.HasKey(e => e.id).HasName("idempotency_keys_pkey");
+
+            entity.HasIndex(e => new { e.idempotency_key_value, e.scope }, "uq_idempotency_keys_key_scope")
+                .IsUnique();
+
+            entity.Property(e => e.created_at).HasDefaultValueSql("now()");
+            entity.Property(e => e.response_body).HasColumnType("jsonb");
         });
 
         modelBuilder.Entity<processed_stripe_event>(entity =>

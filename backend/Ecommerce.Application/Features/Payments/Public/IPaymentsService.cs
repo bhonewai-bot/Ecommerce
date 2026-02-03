@@ -5,6 +5,6 @@ namespace Ecommerce.Application.Features.Payments.Public;
 
 public interface IPaymentsService
 {
-    Task<Result<PaymentIntentResponse>> CreatePaymentIntentAsync(Guid publicId, CancellationToken cancellationToken);
+    Task<Result<PaymentIntentResponse>> CreatePaymentIntentAsync(Guid publicId, string? idempotencyKey, CancellationToken cancellationToken);
     Task<Result> HandleStripeWebhookAsync(string payload, string signatureHeader, CancellationToken cancellationToken);
 }

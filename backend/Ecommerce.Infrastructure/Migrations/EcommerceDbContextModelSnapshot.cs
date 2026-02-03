@@ -51,6 +51,53 @@ partial class EcommerceDbContextModelSnapshot : ModelSnapshot
                 b.ToTable("categories");
             });
 
+        modelBuilder.Entity("Ecommerce.Infrastructure.Data.Models.idempotency_key", b =>
+            {
+                b.Property<int>("id")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("integer")
+                    .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+                b.Property<DateTime?>("completed_at")
+                    .HasColumnType("timestamp with time zone");
+
+                b.Property<DateTime>("created_at")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("timestamp with time zone")
+                    .HasDefaultValueSql("now()");
+
+                b.Property<string>("idempotency_key_value")
+                    .IsRequired()
+                    .HasColumnType("text");
+
+                b.Property<string>("request_hash")
+                    .IsRequired()
+                    .HasColumnType("text");
+
+                b.Property<string?>("response_body")
+                    .HasColumnType("jsonb");
+
+                b.Property<int?>("response_code")
+                    .HasColumnType("integer");
+
+                b.Property<string>("scope")
+                    .IsRequired()
+                    .HasColumnType("text");
+
+                b.Property<string>("status")
+                    .IsRequired()
+                    .HasColumnType("text");
+
+                b.HasKey("id")
+                    .HasName("idempotency_keys_pkey");
+
+                b.HasIndex("idempotency_key_value", "scope")
+                    .IsUnique()
+                    .HasDatabaseName("uq_idempotency_keys_key_scope");
+
+                b.ToTable("idempotency_keys");
+            });
+
         modelBuilder.Entity("Ecommerce.Infrastructure.Data.Models.order", b =>
             {
                 b.Property<int>("id")

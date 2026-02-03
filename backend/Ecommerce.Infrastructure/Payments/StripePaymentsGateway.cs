@@ -27,9 +27,13 @@ public sealed class StripePaymentsGateway : IPaymentsGateway
         long amount,
         string currency,
         Guid orderPublicId,
+        string? idempotencyKey,
         CancellationToken cancellationToken)
     {
         var service = new PaymentIntentService(_client);
+        var requestOptions = string.IsNullOrWhiteSpace(idempotencyKey)
+            ? null
+            : new RequestOptions { IdempotencyKey = idempotencyKey };
         var options = new PaymentIntentCreateOptions
         {
             Amount = amount,
@@ -44,7 +48,7 @@ public sealed class StripePaymentsGateway : IPaymentsGateway
 
         try
         {
-            var intent = await service.CreateAsync(options, cancellationToken: cancellationToken);
+            var intent = await service.CreateAsync(options, requestOptions, cancellationToken);
             if (string.IsNullOrWhiteSpace(intent.ClientSecret))
             {
                 return Result<StripePaymentIntentDto>.BadRequest("Payment service is misconfigured.");

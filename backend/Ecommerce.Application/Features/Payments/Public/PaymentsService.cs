@@ -27,6 +27,7 @@ public sealed class PaymentsService : IPaymentsService
 
     public async Task<Result<PaymentIntentResponse>> CreatePaymentIntentAsync(
         Guid publicId,
+        string? idempotencyKey,
         CancellationToken cancellationToken)
     {
         var infoResult = await _orders.GetPaymentInfoByPublicIdAsync(publicId, cancellationToken);
@@ -54,6 +55,7 @@ public sealed class PaymentsService : IPaymentsService
             amount,
             infoResult.Data.Currency,
             infoResult.Data.PublicId,
+            idempotencyKey,
             cancellationToken);
 
         if (!intentResult.IsSuccess || intentResult.Data is null)

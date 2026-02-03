@@ -1,6 +1,7 @@
 using Ecommerce.Application.Common;
 using Ecommerce.Application.Features.Checkout;
 using Ecommerce.Application.Features.Checkout.Models;
+using Ecommerce.Application.Features.Idempotency;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Ecommerce.WebApi.Controllers.Public;
@@ -10,10 +11,12 @@ namespace Ecommerce.WebApi.Controllers.Public;
 public sealed class CheckoutController : ControllerBase
 {
     private readonly ICheckoutService _checkoutService;
+    private readonly IdempotencyService _idempotency;
 
-    public CheckoutController(ICheckoutService checkoutService)
+    public CheckoutController(ICheckoutService checkoutService, IdempotencyService idempotency)
     {
         _checkoutService = checkoutService;
+        _idempotency = idempotency;
     }
 
     [HttpPost]
@@ -21,13 +24,25 @@ public sealed class CheckoutController : ControllerBase
         CheckoutRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await _checkoutService.CreateOrderAsync(request, cancellationToken);
-
-        return result.Status switch
+        if (!HttpContext.Items.TryGetValue("Idempotency-Key", out var keyObj) || keyObj is not string key || string.IsNullOrWhiteSpace(key))
         {
-            ResultStatus.BadRequest => BadRequest(result.Error),
+            return BadRequest("Idempotency-Key header is required.");
+        }
+
+        var idempotencyResult = await _idempotency.ExecuteAsync(
+            "checkout.create",
+            key,
+            request,
+            ct => _checkoutService.CreateOrderAsync(request, ct),
+            201,
+            cancellationToken);
+
+        return idempotencyResult.Result.Status switch
+        {
+            ResultStatus.BadRequest => BadRequest(idempotencyResult.Result.Error),
             ResultStatus.NotFound => NotFound(),
-            _ => Created(string.Empty, result.Data)
+            ResultStatus.Conflict => Conflict(idempotencyResult.Result.Error),
+            _ => StatusCode(idempotencyResult.StatusCode, idempotencyResult.Result.Data)
         };
     }
 }

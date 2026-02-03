@@ -9,6 +9,7 @@ public interface IPaymentsGateway
         long amount,
         string currency,
         Guid orderPublicId,
+        string? idempotencyKey,
         CancellationToken cancellationToken);
 
     Task<Result<StripeWebhookEventDto>> ParseWebhookEventAsync(

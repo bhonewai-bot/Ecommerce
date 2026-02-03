@@ -1,6 +1,7 @@
 using Ecommerce.Application.Contracts;
 using Ecommerce.Application.Features.Payments.Public;
 using Ecommerce.Infrastructure.Data;
+using Ecommerce.Infrastructure.Idempotency;
 using Ecommerce.Infrastructure.Payments;
 using Ecommerce.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -29,6 +30,7 @@ public static class DependencyInjection
         services.AddScoped<IOrderRepository, OrderRepository>();
         services.AddScoped<IPaymentsGateway, StripePaymentsGateway>();
         services.AddScoped<IStripeEventDeduper, StripeEventDeduper>();
+        services.AddScoped<IIdempotencyStore, IdempotencyStore>();
         return services;
     }
 }

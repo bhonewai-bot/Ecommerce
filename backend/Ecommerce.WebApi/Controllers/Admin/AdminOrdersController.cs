@@ -1,5 +1,6 @@
 using Ecommerce.Application.Common;
 using Ecommerce.Application.Features.Checkout;
+using Ecommerce.Application.Features.Idempotency;
 using Ecommerce.Application.Features.Orders.Admin;
 using Ecommerce.Application.Features.Orders.Models;
 using Microsoft.AspNetCore.Mvc;
@@ -11,10 +12,12 @@ namespace Ecommerce.WebApi.Controllers.Admin;
 public sealed class AdminOrdersController : ControllerBase
 {
     private readonly IAdminOrdersService _service;
+    private readonly IdempotencyService _idempotency;
 
-    public AdminOrdersController(IAdminOrdersService service)
+    public AdminOrdersController(IAdminOrdersService service, IdempotencyService idempotency)
     {
         _service = service;
+        _idempotency = idempotency;
     }
 
     [HttpGet]
@@ -59,6 +62,27 @@ public sealed class AdminOrdersController : ControllerBase
         UpdateOrderStatusRequest request,
         CancellationToken cancellationToken)
     {
+        if (HttpContext.Items.TryGetValue("Idempotency-Key", out var keyObj) &&
+            keyObj is string key &&
+            !string.IsNullOrWhiteSpace(key))
+        {
+            var idempotencyResult = await _idempotency.ExecuteAsync(
+                "admin.orders.update_status",
+                key,
+                new { publicId, request.Status },
+                ct => _service.UpdateStatusAsync(publicId, request.Status, ct),
+                204,
+                cancellationToken);
+
+            return idempotencyResult.Result.Status switch
+            {
+                ResultStatus.NotFound => NotFound(),
+                ResultStatus.Conflict => Conflict(idempotencyResult.Result.Error),
+                ResultStatus.BadRequest => BadRequest(idempotencyResult.Result.Error),
+                _ => StatusCode(idempotencyResult.StatusCode)
+            };
+        }
+
         var result = await _service.UpdateStatusAsync(publicId, request.Status, cancellationToken);
 
         return result.Status switch

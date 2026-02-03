@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Ecommerce.Application.Features.Categories.Admin;
 using Ecommerce.Application.Features.Categories.Public;
 using Ecommerce.Application.Features.Checkout;
+using Ecommerce.Application.Features.Idempotency;
 using Ecommerce.Application.Features.Orders.Admin;
 using Ecommerce.Application.Features.Orders.Public;
 using Ecommerce.Application.Features.Payments.Public;
@@ -55,6 +56,7 @@ builder.Services.AddScoped<IPublicCategoriesService, PublicCategoriesService>();
 builder.Services.AddScoped<ICheckoutService, CheckoutService>();
 builder.Services.AddScoped<IPublicOrdersService, PublicOrdersService>();
 builder.Services.AddScoped<IPaymentsService, PaymentsService>();
+builder.Services.AddScoped<IdempotencyService>();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("FrontendDev", policy =>
@@ -83,6 +85,7 @@ if (!app.Environment.IsDevelopment())
 app.UseCors("FrontendDev");
 
 app.UseMiddleware<CorrelationIdMiddleware>();
+app.UseMiddleware<IdempotencyKeyMiddleware>();
 
 app.UseSerilogRequestLogging(options =>
 {
