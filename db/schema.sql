@@ -75,3 +75,20 @@ CREATE TABLE IF NOT EXISTS processed_stripe_events (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT uq_processed_stripe_events_stripe_event_id UNIQUE (stripe_event_id)
 );
+
+CREATE TABLE IF NOT EXISTS idempotency_keys (
+    id SERIAL PRIMARY KEY,
+    idempotency_key TEXT NOT NULL,
+    scope TEXT NOT NULL,
+    request_hash TEXT NULL,
+    status TEXT NOT NULL
+    CHECK (status IN ('processing', 'completed', 'failed')),
+    response_code INTEGER NULL,
+    response_body JSONB NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    completed_at TIMESTAMPTZ NULL,
+    CONSTRAINT uq_idempotency_keys_key_scope UNIQUE (idempotency_key, scope)
+);
+
+CREATE INDEX IF NOT EXISTS ix_idempotency_keys_created_at ON idempotency_keys (created_at);
+CREATE INDEX IF NOT EXISTS ix_idempotency_keys_status ON idempotency_keys (status);
