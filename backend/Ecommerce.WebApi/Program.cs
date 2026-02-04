@@ -16,6 +16,7 @@ using Serilog;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Routing;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -120,9 +121,17 @@ app.UseSerilogRequestLogging(options =>
     options.EnrichDiagnosticContext = (diagnostic, context) =>
     {
         var correlationId = context.Items.TryGetValue("CorrelationId", out var value) ? value?.ToString() : null;
+        var endpoint = context.GetEndpoint();
+        var route = endpoint switch
+        {
+            RouteEndpoint routeEndpoint => routeEndpoint.RoutePattern.RawText,
+            _ => endpoint?.DisplayName
+        };
         diagnostic.Set("CorrelationId", correlationId);
         diagnostic.Set("TraceId", Activity.Current?.TraceId.ToString());
         diagnostic.Set("UserAgent", context.Request.Headers.UserAgent.ToString());
+        diagnostic.Set("Route", route ?? context.Request.Path.Value);
+        diagnostic.Set("StatusCode", context.Response.StatusCode);
     };
 });
 

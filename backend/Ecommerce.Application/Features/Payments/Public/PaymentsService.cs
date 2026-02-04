@@ -72,17 +72,19 @@ public sealed class PaymentsService : IPaymentsService
                    ["OrderPublicId"] = infoResult.Data.PublicId,
                    ["PaymentIntentId"] = intentResult.Data.PaymentIntentId,
                    ["Amount"] = amount,
-                   ["Currency"] = infoResult.Data.Currency
+                   ["Currency"] = infoResult.Data.Currency,
+                   ["Source"] = "public_api"
                }))
         {
             _logger.LogInformation(
-                "payment.intent_created {@Audit}",
+                "payment.intent.created {@Audit}",
                 new
                 {
                     OrderPublicId = infoResult.Data.PublicId,
                     PaymentIntentId = intentResult.Data.PaymentIntentId,
                     Amount = amount,
-                    Currency = infoResult.Data.Currency
+                    Currency = infoResult.Data.Currency,
+                    Source = "public_api"
                 });
         }
 
@@ -109,7 +111,8 @@ public sealed class PaymentsService : IPaymentsService
                    ["StripeEventId"] = eventResult.Data.StripeEventId,
                    ["EventType"] = eventResult.Data.Type,
                    ["OrderPublicId"] = eventResult.Data.OrderPublicId,
-                   ["PaymentIntentId"] = eventResult.Data.PaymentIntentId
+                   ["PaymentIntentId"] = eventResult.Data.PaymentIntentId,
+                   ["Source"] = "webhook"
                }))
         {
             _logger.LogInformation(
@@ -119,7 +122,8 @@ public sealed class PaymentsService : IPaymentsService
                     StripeEventId = eventResult.Data.StripeEventId,
                     EventType = eventResult.Data.Type,
                     OrderPublicId = eventResult.Data.OrderPublicId,
-                    PaymentIntentId = eventResult.Data.PaymentIntentId
+                    PaymentIntentId = eventResult.Data.PaymentIntentId,
+                    Source = "webhook"
                 });
         }
 
@@ -141,7 +145,8 @@ public sealed class PaymentsService : IPaymentsService
             using (_logger.BeginScope(new Dictionary<string, object?>
                    {
                        ["StripeEventId"] = eventResult.Data.StripeEventId,
-                       ["EventType"] = eventResult.Data.Type
+                       ["EventType"] = eventResult.Data.Type,
+                       ["Source"] = "webhook"
                    }))
             {
                 _logger.LogInformation(
@@ -149,7 +154,8 @@ public sealed class PaymentsService : IPaymentsService
                     new
                     {
                         StripeEventId = eventResult.Data.StripeEventId,
-                        EventType = eventResult.Data.Type
+                        EventType = eventResult.Data.Type,
+                        Source = "webhook"
                     });
             }
 
@@ -186,15 +192,17 @@ public sealed class PaymentsService : IPaymentsService
         using (_logger.BeginScope(new Dictionary<string, object?>
                {
                    ["OrderPublicId"] = publicId,
-                   ["PaymentIntentId"] = eventResult.Data.PaymentIntentId
+                   ["PaymentIntentId"] = eventResult.Data.PaymentIntentId,
+                   ["Source"] = "webhook"
                }))
         {
             _logger.LogInformation(
-                "payment.succeeded {@Audit}",
+                "order.paid {@Audit}",
                 new
                 {
                     OrderPublicId = publicId,
-                    PaymentIntentId = eventResult.Data.PaymentIntentId
+                    PaymentIntentId = eventResult.Data.PaymentIntentId,
+                    Source = "webhook"
                 });
         }
 
@@ -205,7 +213,8 @@ public sealed class PaymentsService : IPaymentsService
                        ["OrderPublicId"] = publicId,
                        ["OldStatus"] = statusResult.Data,
                        ["NewStatus"] = OrderStatus.Paid,
-                       ["Source"] = "stripe_webhook"
+                       ["PaymentIntentId"] = eventResult.Data.PaymentIntentId,
+                       ["Source"] = "webhook"
                    }))
             {
                 _logger.LogInformation(
@@ -215,7 +224,8 @@ public sealed class PaymentsService : IPaymentsService
                         OrderPublicId = publicId,
                         OldStatus = statusResult.Data,
                         NewStatus = OrderStatus.Paid,
-                        Source = "stripe_webhook"
+                        PaymentIntentId = eventResult.Data.PaymentIntentId,
+                        Source = "webhook"
                     });
             }
         }

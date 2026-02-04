@@ -3,6 +3,7 @@ using Ecommerce.Application.Contracts;
 using Ecommerce.Application.Features.Checkout.Commands;
 using Ecommerce.Application.Features.Checkout.Models;
 using Ecommerce.Application.Features.Products.Models;
+using Microsoft.Extensions.Logging;
 
 namespace Ecommerce.Application.Features.Checkout;
 
@@ -11,11 +12,13 @@ public sealed class CheckoutService : ICheckoutService
     private const string DefaultCurrency = "THB";
     private readonly IProductRepository _products;
     private readonly IOrderRepository _orders;
+    private readonly ILogger<CheckoutService> _logger;
 
-    public CheckoutService(IProductRepository products, IOrderRepository orders)
+    public CheckoutService(IProductRepository products, IOrderRepository orders, ILogger<CheckoutService> logger)
     {
         _products = products;
         _orders = orders;
+        _logger = logger;
     }
 
     public async Task<Result<CheckoutResponse>> CreateOrderAsync(
@@ -93,6 +96,23 @@ public sealed class CheckoutService : ICheckoutService
         if (!createResult.IsSuccess)
         {
             return new Result<CheckoutResponse>(createResult.Status, default, createResult.Error);
+        }
+
+        using (_logger.BeginScope(new Dictionary<string, object?>
+               {
+                   ["OrderPublicId"] = command.PublicId,
+                   ["Source"] = "public_api"
+               }))
+        {
+            _logger.LogInformation(
+                "checkout.created {@Audit}",
+                new
+                {
+                    OrderPublicId = command.PublicId,
+                    TotalAmount = command.TotalAmount,
+                    Currency = command.Currency,
+                    Source = "public_api"
+                });
         }
 
         return Result<CheckoutResponse>.Ok(new CheckoutResponse
