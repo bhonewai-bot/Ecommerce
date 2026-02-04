@@ -34,7 +34,8 @@ Log.Logger = new LoggerConfiguration()
     
     .CreateLogger();
 
-var stripeSecretKey = builder.Configuration["Stripe:SecretKey"];
+var stripeSecretKey = Environment.GetEnvironmentVariable("STRIPE_SECRET_KEY")
+    ?? builder.Configuration["Stripe:SecretKey"];
 if (string.IsNullOrWhiteSpace(stripeSecretKey) ||
     stripeSecretKey.Contains("REPLACE_ME", StringComparison.OrdinalIgnoreCase))
 {
