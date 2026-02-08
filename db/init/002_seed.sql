@@ -9,6 +9,12 @@ INSERT INTO categories (id, name, description, delete_flag) VALUES
   (6, 'Beauty & Personal Care', 'Skincare and grooming', FALSE)
 ON CONFLICT (id) DO NOTHING;
 
+SELECT setval(
+               pg_get_serial_sequence('categories','id'),
+               (SELECT COALESCE(MAX(id), 1) FROM categories),
+               true
+       );
+
 INSERT INTO products (category_id, name, description, price, image_url, delete_flag) VALUES
   (1, 'Wireless Earbuds', 'Compact earbuds with charging case', 49.99, '/images/products/earbuds.jpg', FALSE),
   (1, 'Bluetooth Speaker', 'Portable speaker with deep bass', 39.50, '/images/products/speaker.jpg', FALSE),
