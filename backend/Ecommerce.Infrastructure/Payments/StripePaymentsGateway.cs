@@ -19,9 +19,7 @@ public sealed class StripePaymentsGateway : IPaymentsGateway
         ILogger<StripePaymentsGateway> logger)
     {
         _client = client;
-        _webhookSecret = Environment.GetEnvironmentVariable("STRIPE_WEBHOOK_SECRET")
-            ?? configuration["Stripe:WebhookSecret"]
-            ?? string.Empty;
+        _webhookSecret = configuration["Stripe:WebhookSecret"] ?? string.Empty;
         _logger = logger;
     }
 

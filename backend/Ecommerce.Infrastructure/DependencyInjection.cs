@@ -17,15 +17,12 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        var connectionString = Environment.GetEnvironmentVariable("DB_CONNECTION")
-            ?? configuration.GetConnectionString("DbConnection");
+        var connectionString = configuration.GetConnectionString("DbConnection");
 
         services.AddDbContext<EcommerceDbContext>(options =>
             options.UseNpgsql(connectionString));
 
-        var stripeSecretKey = Environment.GetEnvironmentVariable("STRIPE_SECRET_KEY")
-            ?? configuration["Stripe:SecretKey"]
-            ?? string.Empty;
+        var stripeSecretKey = configuration["Stripe:SecretKey"] ?? string.Empty;
         services.AddSingleton<IStripeClient>(new StripeClient(stripeSecretKey));
 
         services.AddScoped<IProductRepository, ProductRepository>();

@@ -13,10 +13,8 @@ using System.Text.Json.Serialization;
 using Ecommerce.WebApi.Errors;
 using Ecommerce.WebApi.Middlewares;
 using Serilog;
-using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Routing;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,8 +32,7 @@ Log.Logger = new LoggerConfiguration()
     
     .CreateLogger();
 
-var stripeSecretKey = Environment.GetEnvironmentVariable("STRIPE_SECRET_KEY")
-    ?? builder.Configuration["Stripe:SecretKey"];
+var stripeSecretKey = builder.Configuration["Stripe:SecretKey"];
 if (string.IsNullOrWhiteSpace(stripeSecretKey) ||
     stripeSecretKey.Contains("REPLACE_ME", StringComparison.OrdinalIgnoreCase))
 {
@@ -46,6 +43,9 @@ if (string.IsNullOrWhiteSpace(stripeSecretKey) ||
 }
 
 builder.Host.UseSerilog();
+
+var allowedOrigins = (builder.Configuration["CORS_ORIGINS"] ?? "")
+    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
@@ -72,10 +72,24 @@ builder.Services.AddScoped<IPaymentsService, PaymentsService>();
 builder.Services.AddScoped<IdempotencyService>();
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("FrontendDev", policy =>
+    /*options.AddPolicy("FrontendDev", policy =>
         policy.AllowAnyOrigin()
             .AllowAnyHeader()
-            .AllowAnyMethod());
+            .AllowAnyMethod());*/
+    options.AddPolicy("Frontend", policy =>
+    {
+        if (allowedOrigins.Length == 0)
+        {
+            policy.WithOrigins("https://ecommerce.cd.cc");
+        }
+        else
+        {
+            policy.WithOrigins(allowedOrigins);
+        }
+
+        policy.AllowAnyHeader()
+            .AllowAnyMethod();
+    });
 });
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -112,7 +126,7 @@ app.UseExceptionHandler(errorApp =>
     });
 });
 
-app.UseCors("FrontendDev");
+app.UseCors("Frontend");
 
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<IdempotencyKeyMiddleware>();
