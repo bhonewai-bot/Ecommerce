@@ -4,4 +4,5 @@ public sealed record StripeWebhookEventDto(
     string StripeEventId,
     string Type,
     string? OrderPublicId,
-    string? PaymentIntentId);
+    string? PaymentIntentId,
+    string? CheckoutSessionId);

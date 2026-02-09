@@ -2,8 +2,11 @@ using Ecommerce.Application.Common;
 using Ecommerce.Application.Contracts;
 using Ecommerce.Application.Features.Checkout.Commands;
 using Ecommerce.Application.Features.Checkout.Models;
+using Ecommerce.Application.Features.Payments.Models;
+using Ecommerce.Application.Features.Payments.Public;
 using Ecommerce.Application.Features.Products.Models;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
 
 namespace Ecommerce.Application.Features.Checkout;
 
@@ -12,13 +15,22 @@ public sealed class CheckoutService : ICheckoutService
     private const string DefaultCurrency = "THB";
     private readonly IProductRepository _products;
     private readonly IOrderRepository _orders;
+    private readonly IPaymentsGateway _payments;
     private readonly ILogger<CheckoutService> _logger;
+    private readonly string _frontendBaseUrl;
 
-    public CheckoutService(IProductRepository products, IOrderRepository orders, ILogger<CheckoutService> logger)
+    public CheckoutService(
+        IProductRepository products,
+        IOrderRepository orders,
+        IPaymentsGateway payments,
+        IConfiguration configuration,
+        ILogger<CheckoutService> logger)
     {
         _products = products;
         _orders = orders;
+        _payments = payments;
         _logger = logger;
+        _frontendBaseUrl = configuration["Client:BaseUrl"] ?? string.Empty;
     }
 
     public async Task<Result<CheckoutResponse>> CreateOrderAsync(
@@ -28,6 +40,11 @@ public sealed class CheckoutService : ICheckoutService
         if (request.Items is null || request.Items.Count == 0)
         {
             return Result<CheckoutResponse>.BadRequest("Order must contain at least one item.");
+        }
+
+        if (string.IsNullOrWhiteSpace(_frontendBaseUrl))
+        {
+            return Result<CheckoutResponse>.BadRequest("Frontend base URL is not configured.");
         }
 
         if (request.Items.Any(item => item.Quantity <= 0))
@@ -98,9 +115,37 @@ public sealed class CheckoutService : ICheckoutService
             return new Result<CheckoutResponse>(createResult.Status, default, createResult.Error);
         }
 
+        var lineItems = responseItems
+            .Select(item => new StripeCheckoutLineItemDto(
+                item.ProductName,
+                ToMinorUnits(item.UnitPrice),
+                item.Quantity))
+            .ToList();
+
+        var successUrl = BuildReturnUrl(command.PublicId, "success");
+        var cancelUrl = BuildReturnUrl(command.PublicId, "cancel");
+
+        var sessionResult = await _payments.CreateCheckoutSessionAsync(
+            new StripeCheckoutSessionRequest(
+                command.PublicId,
+                command.Currency,
+                request.CustomerEmail,
+                lineItems,
+                successUrl,
+                cancelUrl),
+            cancellationToken);
+
+        if (!sessionResult.IsSuccess || sessionResult.Data is null)
+        {
+            await _orders.UpdateStatusByPublicIdAsync(command.PublicId, OrderStatus.Cancelled, cancellationToken);
+            return Result<CheckoutResponse>.BadRequest(
+                sessionResult.Error ?? "Unable to start checkout session.");
+        }
+
         using (_logger.BeginScope(new Dictionary<string, object?>
                {
                    ["OrderPublicId"] = command.PublicId,
+                   ["CheckoutSessionId"] = sessionResult.Data.SessionId,
                    ["Source"] = "public_api"
                }))
         {
@@ -109,6 +154,7 @@ public sealed class CheckoutService : ICheckoutService
                 new
                 {
                     OrderPublicId = command.PublicId,
+                    CheckoutSessionId = sessionResult.Data.SessionId,
                     TotalAmount = command.TotalAmount,
                     Currency = command.Currency,
                     Source = "public_api"
@@ -117,11 +163,25 @@ public sealed class CheckoutService : ICheckoutService
 
         return Result<CheckoutResponse>.Ok(new CheckoutResponse
         {
-            PublicId = command.PublicId,
+            OrderPublicId = command.PublicId,
             TotalAmount = command.TotalAmount,
             Currency = command.Currency,
             Status = command.Status,
-            Items = responseItems
+            Items = responseItems,
+            StripeCheckoutUrl = sessionResult.Data.Url,
+            CheckoutSessionId = sessionResult.Data.SessionId
         });
+    }
+
+    private string BuildReturnUrl(Guid publicId, string outcome)
+    {
+        var baseUrl = _frontendBaseUrl.TrimEnd('/');
+        return $"{baseUrl}/checkout/{outcome}?order={publicId}&session_id={{CHECKOUT_SESSION_ID}}";
+    }
+
+    private static long ToMinorUnits(decimal amount)
+    {
+        var scaled = decimal.Round(amount * 100m, 0, MidpointRounding.AwayFromZero);
+        return decimal.ToInt64(scaled);
     }
 }

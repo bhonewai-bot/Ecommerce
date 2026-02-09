@@ -12,6 +12,14 @@ public interface IPaymentsGateway
         string? idempotencyKey,
         CancellationToken cancellationToken);
 
+    Task<Result<StripeCheckoutSessionDto>> CreateCheckoutSessionAsync(
+        StripeCheckoutSessionRequest request,
+        CancellationToken cancellationToken);
+
+    Task<Result<StripeCheckoutSessionDto>> GetCheckoutSessionAsync(
+        string sessionId,
+        CancellationToken cancellationToken);
+
     Task<Result<StripeWebhookEventDto>> ParseWebhookEventAsync(
         string payload,
         string signatureHeader,

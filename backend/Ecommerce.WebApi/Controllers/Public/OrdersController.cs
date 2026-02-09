@@ -28,4 +28,46 @@ public sealed class OrdersController : ControllerBase
             _ => Ok(result.Data)
         };
     }
+
+    [HttpGet("by-public-id/{publicId:guid}")]
+    public async Task<ActionResult<OrderDto>> GetByPublicIdAlias(Guid publicId, CancellationToken cancellationToken)
+    {
+        var result = await _service.GetByPublicIdAsync(publicId, cancellationToken);
+
+        return result.Status switch
+        {
+            ResultStatus.NotFound => this.ApiNotFound(),
+            _ => Ok(result.Data)
+        };
+    }
+
+    [HttpGet("by-checkout-session/{sessionId}")]
+    public async Task<ActionResult<OrderDto>> GetByCheckoutSession(
+        string sessionId,
+        CancellationToken cancellationToken)
+    {
+        var result = await _service.GetByCheckoutSessionIdAsync(sessionId, cancellationToken);
+
+        return result.Status switch
+        {
+            ResultStatus.NotFound => this.ApiNotFound(),
+            ResultStatus.Conflict => this.ApiConflict(result.Error),
+            ResultStatus.BadRequest => this.ApiBadRequest(result.Error),
+            _ => Ok(result.Data)
+        };
+    }
+
+    [HttpPost("{publicId:guid}/cancel")]
+    public async Task<ActionResult<OrderDto>> Cancel(Guid publicId, CancellationToken cancellationToken)
+    {
+        var result = await _service.CancelPendingAsync(publicId, cancellationToken);
+
+        return result.Status switch
+        {
+            ResultStatus.NotFound => this.ApiNotFound(),
+            ResultStatus.Conflict => this.ApiConflict(result.Error),
+            ResultStatus.BadRequest => this.ApiBadRequest(result.Error),
+            _ => Ok(result.Data)
+        };
+    }
 }

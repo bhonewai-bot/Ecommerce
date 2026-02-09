@@ -4,6 +4,7 @@ using Ecommerce.Application.Features.Payments.Public;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Stripe;
+using Stripe.Checkout;
 
 namespace Ecommerce.Infrastructure.Payments;
 
@@ -74,6 +75,112 @@ public sealed class StripePaymentsGateway : IPaymentsGateway
         }
     }
 
+    public async Task<Result<StripeCheckoutSessionDto>> CreateCheckoutSessionAsync(
+        StripeCheckoutSessionRequest request,
+        CancellationToken cancellationToken)
+    {
+        var service = new SessionService(_client);
+        var orderPublicId = request.OrderPublicId.ToString();
+        var options = new SessionCreateOptions
+        {
+            Mode = "payment",
+            SuccessUrl = request.SuccessUrl,
+            CancelUrl = request.CancelUrl,
+            CustomerEmail = string.IsNullOrWhiteSpace(request.CustomerEmail) ? null : request.CustomerEmail,
+            ClientReferenceId = orderPublicId,
+            Metadata = new Dictionary<string, string>
+            {
+                ["orderPublicId"] = orderPublicId
+            },
+            PaymentIntentData = new SessionPaymentIntentDataOptions
+            {
+                Metadata = new Dictionary<string, string>
+                {
+                    ["orderPublicId"] = orderPublicId
+                }
+            },
+            LineItems = request.LineItems.Select(item => new SessionLineItemOptions
+            {
+                Quantity = item.Quantity,
+                PriceData = new SessionLineItemPriceDataOptions
+                {
+                    Currency = request.Currency.ToLowerInvariant(),
+                    UnitAmount = item.UnitAmount,
+                    ProductData = new SessionLineItemPriceDataProductDataOptions
+                    {
+                        Name = item.Name
+                    }
+                }
+            }).ToList()
+        };
+
+        try
+        {
+            var session = await service.CreateAsync(options, cancellationToken: cancellationToken);
+            if (string.IsNullOrWhiteSpace(session.Url))
+            {
+                return Result<StripeCheckoutSessionDto>.BadRequest("Payment service is misconfigured.");
+            }
+
+            return Result<StripeCheckoutSessionDto>.Ok(
+                new StripeCheckoutSessionDto(session.Id, session.Url, request.OrderPublicId));
+        }
+        catch (StripeException ex)
+        {
+            using (_logger.BeginScope(new Dictionary<string, object?>
+                   {
+                       ["HttpStatusCode"] = ex.HttpStatusCode,
+                       ["StripeErrorCode"] = ex.StripeError?.Code,
+                       ["StripeErrorMessage"] = ex.StripeError?.Message,
+                       ["StripeRequestId"] = ex.StripeResponse?.RequestId
+                   }))
+            {
+                _logger.LogError(ex, "Stripe checkout session creation failed");
+            }
+
+            return Result<StripeCheckoutSessionDto>.BadRequest("Payment service is misconfigured.");
+        }
+    }
+
+    public async Task<Result<StripeCheckoutSessionDto>> GetCheckoutSessionAsync(
+        string sessionId,
+        CancellationToken cancellationToken)
+    {
+        var service = new SessionService(_client);
+
+        try
+        {
+            var session = await service.GetAsync(sessionId, cancellationToken: cancellationToken);
+            var publicIdValue = session.Metadata?.TryGetValue("orderPublicId", out var publicId) == true
+                ? publicId
+                : session.ClientReferenceId;
+
+            Guid? parsedPublicId = null;
+            if (Guid.TryParse(publicIdValue, out var parsed))
+            {
+                parsedPublicId = parsed;
+            }
+
+            return Result<StripeCheckoutSessionDto>.Ok(
+                new StripeCheckoutSessionDto(session.Id, session.Url, parsedPublicId));
+        }
+        catch (StripeException ex)
+        {
+            using (_logger.BeginScope(new Dictionary<string, object?>
+                   {
+                       ["HttpStatusCode"] = ex.HttpStatusCode,
+                       ["StripeErrorCode"] = ex.StripeError?.Code,
+                       ["StripeErrorMessage"] = ex.StripeError?.Message,
+                       ["StripeRequestId"] = ex.StripeResponse?.RequestId
+                   }))
+            {
+                _logger.LogError(ex, "Stripe checkout session fetch failed");
+            }
+
+            return Result<StripeCheckoutSessionDto>.BadRequest("Unable to load checkout session.");
+        }
+    }
+
     public Task<Result<StripeWebhookEventDto>> ParseWebhookEventAsync(
         string payload,
         string signatureHeader,
@@ -91,11 +198,25 @@ public sealed class StripePaymentsGateway : IPaymentsGateway
             {
                 intent.Metadata.TryGetValue("orderPublicId", out var publicId);
                 return Task.FromResult(Result<StripeWebhookEventDto>.Ok(
-                    new StripeWebhookEventDto(stripeEvent.Id, stripeEvent.Type, publicId, intent.Id)));
+                    new StripeWebhookEventDto(stripeEvent.Id, stripeEvent.Type, publicId, intent.Id, null)));
+            }
+
+            if (stripeEvent.Data.Object is Session session)
+            {
+                var publicId = session.Metadata?.TryGetValue("orderPublicId", out var value) == true
+                    ? value
+                    : session.ClientReferenceId;
+                return Task.FromResult(Result<StripeWebhookEventDto>.Ok(
+                    new StripeWebhookEventDto(
+                        stripeEvent.Id,
+                        stripeEvent.Type,
+                        publicId,
+                        session.PaymentIntentId,
+                        session.Id)));
             }
 
             return Task.FromResult(Result<StripeWebhookEventDto>.Ok(
-                new StripeWebhookEventDto(stripeEvent.Id, stripeEvent.Type, null, null)));
+                new StripeWebhookEventDto(stripeEvent.Id, stripeEvent.Type, null, null, null)));
         }
         catch (StripeException ex)
         {

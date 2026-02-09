@@ -112,6 +112,7 @@ public sealed class PaymentsService : IPaymentsService
                    ["EventType"] = eventResult.Data.Type,
                    ["OrderPublicId"] = eventResult.Data.OrderPublicId,
                    ["PaymentIntentId"] = eventResult.Data.PaymentIntentId,
+                   ["CheckoutSessionId"] = eventResult.Data.CheckoutSessionId,
                    ["Source"] = "webhook"
                }))
         {
@@ -123,6 +124,7 @@ public sealed class PaymentsService : IPaymentsService
                     EventType = eventResult.Data.Type,
                     OrderPublicId = eventResult.Data.OrderPublicId,
                     PaymentIntentId = eventResult.Data.PaymentIntentId,
+                    CheckoutSessionId = eventResult.Data.CheckoutSessionId,
                     Source = "webhook"
                 });
         }
@@ -146,6 +148,7 @@ public sealed class PaymentsService : IPaymentsService
                    {
                        ["StripeEventId"] = eventResult.Data.StripeEventId,
                        ["EventType"] = eventResult.Data.Type,
+                       ["CheckoutSessionId"] = eventResult.Data.CheckoutSessionId,
                        ["Source"] = "webhook"
                    }))
             {
@@ -155,6 +158,7 @@ public sealed class PaymentsService : IPaymentsService
                     {
                         StripeEventId = eventResult.Data.StripeEventId,
                         EventType = eventResult.Data.Type,
+                        CheckoutSessionId = eventResult.Data.CheckoutSessionId,
                         Source = "webhook"
                     });
             }
@@ -162,7 +166,8 @@ public sealed class PaymentsService : IPaymentsService
             return Result.Ok();
         }
 
-        if (!string.Equals(eventResult.Data.Type, "payment_intent.succeeded", StringComparison.Ordinal))
+        if (!string.Equals(eventResult.Data.Type, "payment_intent.succeeded", StringComparison.Ordinal) &&
+            !string.Equals(eventResult.Data.Type, "checkout.session.completed", StringComparison.Ordinal))
         {
             return Result.Ok();
         }
@@ -193,6 +198,7 @@ public sealed class PaymentsService : IPaymentsService
                {
                    ["OrderPublicId"] = publicId,
                    ["PaymentIntentId"] = eventResult.Data.PaymentIntentId,
+                   ["CheckoutSessionId"] = eventResult.Data.CheckoutSessionId,
                    ["Source"] = "webhook"
                }))
         {
@@ -202,6 +208,7 @@ public sealed class PaymentsService : IPaymentsService
                 {
                     OrderPublicId = publicId,
                     PaymentIntentId = eventResult.Data.PaymentIntentId,
+                    CheckoutSessionId = eventResult.Data.CheckoutSessionId,
                     Source = "webhook"
                 });
         }
@@ -214,6 +221,7 @@ public sealed class PaymentsService : IPaymentsService
                        ["OldStatus"] = statusResult.Data,
                        ["NewStatus"] = OrderStatus.Paid,
                        ["PaymentIntentId"] = eventResult.Data.PaymentIntentId,
+                       ["CheckoutSessionId"] = eventResult.Data.CheckoutSessionId,
                        ["Source"] = "webhook"
                    }))
             {
@@ -225,6 +233,7 @@ public sealed class PaymentsService : IPaymentsService
                         OldStatus = statusResult.Data,
                         NewStatus = OrderStatus.Paid,
                         PaymentIntentId = eventResult.Data.PaymentIntentId,
+                        CheckoutSessionId = eventResult.Data.CheckoutSessionId,
                         Source = "webhook"
                     });
             }
