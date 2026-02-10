@@ -57,6 +57,22 @@ public sealed class OrdersController : ControllerBase
         };
     }
 
+    [HttpGet("by-checkout-session/{sessionId}/resume")]
+    public async Task<ActionResult<CheckoutResumeDto>> GetResumableCheckoutBySession(
+        string sessionId,
+        CancellationToken cancellationToken)
+    {
+        var result = await _service.GetResumableCheckoutBySessionIdAsync(sessionId, cancellationToken);
+
+        return result.Status switch
+        {
+            ResultStatus.NotFound => this.ApiNotFound(),
+            ResultStatus.Conflict => this.ApiConflict(result.Error),
+            ResultStatus.BadRequest => this.ApiBadRequest(result.Error),
+            _ => Ok(result.Data)
+        };
+    }
+
     [HttpPost("{publicId:guid}/cancel")]
     public async Task<ActionResult<OrderDto>> Cancel(Guid publicId, CancellationToken cancellationToken)
     {
