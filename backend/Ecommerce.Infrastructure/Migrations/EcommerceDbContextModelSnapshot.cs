@@ -110,6 +110,10 @@ partial class EcommerceDbContextModelSnapshot : ModelSnapshot
                     .HasColumnType("timestamp with time zone")
                     .HasDefaultValueSql("now()");
 
+                b.Property<string>("checkout_session_id")
+                    .HasMaxLength(255)
+                    .HasColumnType("character varying(255)");
+
                 b.Property<string>("currency")
                     .IsRequired()
                     .HasMaxLength(3)

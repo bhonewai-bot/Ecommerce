@@ -142,6 +142,16 @@ public sealed class CheckoutService : ICheckoutService
                 sessionResult.Error ?? "Unable to start checkout session.");
         }
 
+        var attachSessionResult = await _orders.UpdateCheckoutSessionIdByPublicIdAsync(
+            command.PublicId,
+            sessionResult.Data.SessionId,
+            cancellationToken);
+        if (!attachSessionResult.IsSuccess)
+        {
+            return Result<CheckoutResponse>.BadRequest(
+                attachSessionResult.Error ?? "Unable to store checkout session.");
+        }
+
         using (_logger.BeginScope(new Dictionary<string, object?>
                {
                    ["OrderPublicId"] = command.PublicId,

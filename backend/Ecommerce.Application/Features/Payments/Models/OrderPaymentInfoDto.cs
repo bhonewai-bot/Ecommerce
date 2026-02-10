@@ -6,4 +6,5 @@ public sealed record OrderPaymentInfoDto(
     Guid PublicId,
     OrderStatus Status,
     string Currency,
-    decimal TotalAmount);
+    decimal TotalAmount,
+    bool HasCheckoutSession);

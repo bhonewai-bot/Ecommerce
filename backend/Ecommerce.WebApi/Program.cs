@@ -72,15 +72,15 @@ builder.Services.AddScoped<IPaymentsService, PaymentsService>();
 builder.Services.AddScoped<IdempotencyService>();
 builder.Services.AddCors(options =>
 {
-    /*options.AddPolicy("FrontendDev", policy =>
+    options.AddPolicy("Frontend", policy =>
         policy.AllowAnyOrigin()
             .AllowAnyHeader()
-            .AllowAnyMethod());*/
-    options.AddPolicy("Frontend", policy =>
+            .AllowAnyMethod());
+    /*options.AddPolicy("Frontend", policy =>
     {
         if (allowedOrigins.Length == 0)
         {
-            policy.WithOrigins("https://ecommerce.cd.cc");
+            policy.WithOrigins("https://ecom.cd.cc");
         }
         else
         {
@@ -89,7 +89,7 @@ builder.Services.AddCors(options =>
 
         policy.AllowAnyHeader()
             .AllowAnyMethod();
-    });
+    });*/
 });
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();

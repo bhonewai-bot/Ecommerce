@@ -45,6 +45,12 @@ public sealed class PaymentsService : IPaymentsService
             return Result<PaymentIntentResponse>.Conflict("Order status is not PendingPayment.");
         }
 
+        if (infoResult.Data.HasCheckoutSession)
+        {
+            return Result<PaymentIntentResponse>.Conflict(
+                "This order uses hosted checkout. Continue payment from Checkout Session.");
+        }
+
         var amount = ToMinorUnits(infoResult.Data.TotalAmount);
         if (amount <= 0)
         {

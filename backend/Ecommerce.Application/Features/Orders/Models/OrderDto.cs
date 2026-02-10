@@ -11,4 +11,5 @@ public sealed record OrderDto(
     decimal DiscountAmount,
     decimal TaxAmount,
     decimal TotalAmount,
+    bool HasCheckoutSession,
     List<OrderItemDto> Items);

@@ -10,6 +10,7 @@ namespace Ecommerce.Application.Contracts;
 public interface IOrderRepository
 {
     Task<Result> CreateAsync(CreateOrderCommand command, CancellationToken cancellationToken);
+    Task<Result> UpdateCheckoutSessionIdByPublicIdAsync(Guid publicId, string checkoutSessionId, CancellationToken cancellationToken);
     Task<Result<OrderDto>> GetByPublicIdAsync(Guid publicId, CancellationToken cancellationToken);
     Task<Result<OrderPaymentInfoDto>> GetPaymentInfoByPublicIdAsync(Guid publicId, CancellationToken cancellationToken);
     Task<Result> MarkPaidByPublicIdAsync(Guid publicId, CancellationToken cancellationToken);

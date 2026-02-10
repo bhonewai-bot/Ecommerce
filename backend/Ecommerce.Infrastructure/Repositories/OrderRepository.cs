@@ -58,6 +58,25 @@ public sealed class OrderRepository : IOrderRepository
         return Result.Ok();
     }
 
+    public async Task<Result> UpdateCheckoutSessionIdByPublicIdAsync(
+        Guid publicId,
+        string checkoutSessionId,
+        CancellationToken cancellationToken)
+    {
+        var entity = await _db.orders
+            .FirstOrDefaultAsync(o => o.public_id == publicId, cancellationToken);
+
+        if (entity is null)
+        {
+            return Result.NotFound();
+        }
+
+        entity.checkout_session_id = checkoutSessionId;
+        entity.updated_at = DateTime.UtcNow;
+        await _db.SaveChangesAsync(cancellationToken);
+        return Result.Ok();
+    }
+
     public async Task<Result<OrderDto>> GetByPublicIdAsync(Guid publicId, CancellationToken cancellationToken)
     {
         var item = await _db.orders
@@ -71,6 +90,7 @@ public sealed class OrderRepository : IOrderRepository
                 o.discount_amount,
                 o.tax_amount,
                 o.total_amount,
+                !string.IsNullOrWhiteSpace(o.checkout_session_id),
                 o.order_items
                     .OrderBy(oi => oi.id)
                     .Select(oi => new OrderItemDto(
@@ -94,7 +114,8 @@ public sealed class OrderRepository : IOrderRepository
                 o.public_id,
                 (OrderStatus)o.status,
                 o.currency,
-                o.total_amount))
+                o.total_amount,
+                !string.IsNullOrWhiteSpace(o.checkout_session_id)))
             .FirstOrDefaultAsync(cancellationToken);
 
         return item is null ? Result<OrderPaymentInfoDto>.NotFound() : Result<OrderPaymentInfoDto>.Ok(item);

@@ -50,6 +50,7 @@ public partial class EcommerceDbContext : DbContext
             entity.Property(e => e.currency)
                 .HasMaxLength(3)
                 .IsFixedLength();
+            entity.Property(e => e.checkout_session_id).HasMaxLength(255);
             entity.Property(e => e.customer_email).HasMaxLength(255);
             entity.Property(e => e.discount_amount).HasPrecision(12, 2);
             entity.Property(e => e.subtotal_amount).HasPrecision(12, 2);
