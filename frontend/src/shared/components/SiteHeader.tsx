@@ -57,9 +57,6 @@ export default function SiteHeader() {
           <NavLink to="/cart" className={navClassName}>
             Cart {count > 0 ? `(${count})` : ""}
           </NavLink>
-          <NavLink to="/admin" className={navClassName}>
-            Admin
-          </NavLink>
           <span className="nav-pill">User storefront</span>
         </nav>
       </div>

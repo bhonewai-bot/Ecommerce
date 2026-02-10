@@ -1,0 +1,29 @@
+:root {
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+
+  --shadow-sm: 0 6px 18px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 16px 40px rgba(15, 23, 42, 0.1);
+
+  --color-bg: #f5f6f7;
+  --color-card: #ffffff;
+  --color-card-soft: #f8fafc;
+  --color-border: rgba(20, 20, 20, 0.12);
+  --color-text: #141414;
+  --color-text-muted: #626567;
+
+  --background: var(--color-bg);
+  --surface: var(--color-card);
+  --text-primary: var(--color-text);
+  --text-muted: var(--color-text-muted);
+  --border: var(--color-border);
+  --shadow: var(--shadow-md);
+}

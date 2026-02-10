@@ -1,17 +1,18 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import SiteHeader from "../shared/components/SiteHeader";
+import SiteFooter from "../shared/components/SiteFooter";
 
 export default function StorefrontLayout() {
+  const location = useLocation();
+  const isPaymentPage = location.pathname === "/pay" || location.pathname.startsWith("/pay/");
+
   return (
     <div className="app-shell storefront-shell">
       <SiteHeader />
       <main className="main">
         <Outlet />
       </main>
-      <footer className="footer">
-        <span>Evercart MVP · Built for portfolio showcase</span>
-        <span>Admin dashboard available at /admin</span>
-      </footer>
+      {!isPaymentPage && <SiteFooter />}
     </div>
   );
 }

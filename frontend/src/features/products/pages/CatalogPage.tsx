@@ -137,9 +137,6 @@ export default function CatalogPage() {
             <button className="button primary" type="button">
               Shop deals
             </button>
-            <button className="button ghost" type="button">
-              Explore categories
-            </button>
           </div>
         </div>
         {/*<div className="hero-card">

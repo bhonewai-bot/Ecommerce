@@ -134,6 +134,70 @@
   font-size: 0.85rem;
 }
 
+.site-footer {
+  width: 100%;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+
+.site-footer-inner {
+  width: min(1200px, 92vw);
+  margin: 0 auto;
+  padding: 2.25rem 0 1.5rem;
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: 2fr 1fr 1fr;
+}
+
+.site-footer-brand h4 {
+  margin: 0 0 0.6rem;
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+}
+
+.site-footer-copy {
+  color: var(--text-muted);
+  max-width: 36ch;
+}
+
+.site-footer-links {
+  display: grid;
+  gap: 0.5rem;
+  align-content: start;
+  color: var(--text-muted);
+}
+
+.site-footer-links h4 {
+  margin: 0 0 0.35rem;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.site-footer-links a {
+  text-decoration: none;
+  color: inherit;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.site-footer-links a:hover {
+  color: var(--text-primary);
+}
+
+.site-footer-bottom {
+  width: min(1200px, 92vw);
+  margin: 0 auto;
+  padding: 1.25rem 0 2rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
 .admin-footer {
   background: var(--surface-alt);
 }
@@ -559,6 +623,20 @@
   color: var(--text-muted);
 }
 
+.pending-checkout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.pending-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
 .state.error {
   border: 1px solid rgba(186, 64, 55, 0.4);
   color: #9b2a1b;
@@ -614,6 +692,50 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
+}
+
+.product-detail--loading .back-link {
+  display: inline-block;
+}
+
+.product-detail--loading .back-link.skeleton-line {
+  width: 140px;
+  height: 12px;
+}
+
+.detail-card--skeleton {
+  position: relative;
+  overflow: hidden;
+}
+
+.detail-card--skeleton .detail-body {
+  gap: 0.9rem;
+}
+
+.detail-card--skeleton .detail-media {
+  min-height: 260px;
+  background: #eef1f6;
+}
+
+.detail-title {
+  height: 24px;
+  width: 72%;
+}
+
+.product-detail--loading .detail-shipping {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.skeleton-pill {
+  height: 40px;
+  width: 150px;
+  border-radius: 999px;
+}
+
+.skeleton-pill--ghost {
+  width: 120px;
 }
 
 .note {
@@ -1104,6 +1226,10 @@
     grid-template-columns: 1fr;
   }
 
+  .site-footer-inner {
+    grid-template-columns: 1fr 1fr;
+  }
+
   .admin-shell {
     flex-direction: column;
   }
@@ -1146,6 +1272,15 @@
 
 @media (max-width: 640px) {
   .footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .site-footer-inner {
+    grid-template-columns: 1fr;
+  }
+
+  .site-footer-bottom {
     flex-direction: column;
     align-items: flex-start;
   }

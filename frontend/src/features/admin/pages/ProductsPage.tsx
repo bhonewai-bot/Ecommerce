@@ -9,6 +9,7 @@ import {
   useUpdateProduct,
 } from "../../products/queries";
 import { useCategories } from "../../categories/queries";
+import { getApiErrorMessage } from "../../../shared/utils/errorMessages";
 
 const emptyProductForm = {
   name: "",
@@ -118,9 +119,9 @@ export default function ProductsPage() {
             resetForm();
           },
           onError: (err) => {
-            const message =
-              err instanceof Error ? err.message : "Failed to save product.";
-            setError(message);
+            setError(
+              getApiErrorMessage(err, "Failed to save product. Please try again.")
+            );
           },
         }
       );
@@ -133,9 +134,9 @@ export default function ProductsPage() {
         resetForm();
       },
       onError: (err) => {
-        const message =
-          err instanceof Error ? err.message : "Failed to save product.";
-        setError(message);
+        setError(
+          getApiErrorMessage(err, "Failed to save product. Please try again.")
+        );
       },
     });
   };
@@ -151,9 +152,9 @@ export default function ProductsPage() {
         }
       },
       onError: (err) => {
-        const message =
-          err instanceof Error ? err.message : "Failed to delete product.";
-        setError(message);
+        setError(
+          getApiErrorMessage(err, "Failed to delete product. Please try again.")
+        );
       },
     });
   };
@@ -324,7 +325,10 @@ export default function ProductsPage() {
         )}
         {productsQuery.isError && !error && (
           <div className="state error">
-            {(productsQuery.error as Error)?.message || "Failed to load products."}
+            {getApiErrorMessage(
+              productsQuery.error,
+              "Failed to load products. Please try again."
+            )}
           </div>
         )}
 

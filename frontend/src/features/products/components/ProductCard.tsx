@@ -6,6 +6,12 @@ type ProductCardProps = {
   category?: string;
 };
 
+const thbFormatter = new Intl.NumberFormat("th-TH", {
+  style: "currency",
+  currency: "THB",
+  maximumFractionDigits: 2,
+});
+
 export default function ProductCard({ product, category }: ProductCardProps) {
   return (
     <article className="product-card">
@@ -18,7 +24,7 @@ export default function ProductCard({ product, category }: ProductCardProps) {
         <p>{product.description || "No description yet."}</p>
         <span className="product-delivery">Free delivery · 2-day</span>
         <div className="product-footer">
-          <span className="price">${product.price.toFixed(2)}</span>
+          <span className="price">{thbFormatter.format(product.price)}</span>
           <Link className="button ghost" to={`/products/${product.id}`}>
             View
           </Link>

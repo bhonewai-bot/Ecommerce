@@ -5,11 +5,29 @@ export type CartItem = {
   quantity: number;
 };
 
+export type PendingOrderStatus =
+  | "pending"
+  | "paid"
+  | "failed"
+  | "expired"
+  | "canceled";
+
+export type PendingOrder = {
+  pendingOrderId: string;
+  checkoutSessionId?: string | null;
+  checkoutUrl?: string | null;
+  createdAt: string;
+  cartSnapshot: CartItem[];
+  status: PendingOrderStatus;
+};
+
 type CartState = {
   items: CartItem[];
 };
 
 const STORAGE_KEY = "evercart:cart";
+const PENDING_ORDER_KEY = "evercart:pending-order";
+export const PENDING_ORDER_EVENT = "pending-order:updated";
 
 function readCart(): CartState {
   if (typeof window === "undefined") {
@@ -35,8 +53,57 @@ function writeCart(state: CartState) {
   window.dispatchEvent(new Event("cart:updated"));
 }
 
+function readPendingOrder(): PendingOrder | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  const raw = window.localStorage.getItem(PENDING_ORDER_KEY);
+  if (!raw) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(raw) as PendingOrder;
+    if (!parsed || !parsed.pendingOrderId || !parsed.cartSnapshot) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writePendingOrder(pendingOrder: PendingOrder | null) {
+  if (typeof window === "undefined") {
+    return;
+  }
+  if (!pendingOrder) {
+    window.localStorage.removeItem(PENDING_ORDER_KEY);
+  } else {
+    window.localStorage.setItem(PENDING_ORDER_KEY, JSON.stringify(pendingOrder));
+  }
+  window.dispatchEvent(new Event(PENDING_ORDER_EVENT));
+}
+
 export function getCart(): CartState {
   return readCart();
+}
+
+export function getPendingOrder(): PendingOrder | null {
+  return readPendingOrder();
+}
+
+export function setPendingOrder(pendingOrder: PendingOrder) {
+  writePendingOrder(pendingOrder);
+}
+
+export function updatePendingOrderStatus(status: PendingOrderStatus) {
+  const current = readPendingOrder();
+  if (!current) return;
+  writePendingOrder({ ...current, status });
+}
+
+export function clearPendingOrder() {
+  writePendingOrder(null);
 }
 
 export function addToCart(item: Omit<CartItem, "quantity">, quantity = 1) {

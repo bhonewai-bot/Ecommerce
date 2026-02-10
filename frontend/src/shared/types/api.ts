@@ -31,6 +31,7 @@ export interface Order {
   discountAmount: number;
   taxAmount: number;
   totalAmount: number;
+  hasCheckoutSession: boolean;
   items: OrderItem[];
 }
 
@@ -49,11 +50,13 @@ export interface CheckoutRequest {
 }
 
 export interface CheckoutResponse {
-  publicId: string;
+  orderPublicId: string;
   totalAmount: number;
   currency: string;
   status: OrderStatus;
   items: OrderItem[];
+  stripeCheckoutUrl?: string | null;
+  checkoutSessionId?: string | null;
 }
 
 export interface PagedResponse<T> {

@@ -1,6 +1,7 @@
 import { Outlet } from "react-router-dom";
 import { useState } from "react";
 import AdminSidebar from "../features/admin/components/AdminSidebar";
+import SiteFooter from "../shared/components/SiteFooter";
 
 export default function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -29,10 +30,7 @@ export default function AdminLayout() {
         <main className="main">
           <Outlet />
         </main>
-        {/*<footer className="footer admin-footer">
-          <span>Admin workspace · Internal use</span>
-          <span>Catalog, inventory, and content controls</span>
-        </footer>*/}
+        <SiteFooter />
       </div>
     </div>
   );

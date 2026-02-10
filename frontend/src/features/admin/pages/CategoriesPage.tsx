@@ -8,6 +8,7 @@ import {
   useDeleteCategory,
   useUpdateCategory,
 } from "../../categories/queries";
+import { getApiErrorMessage } from "../../../shared/utils/errorMessages";
 
 const emptyCategoryForm = { name: "", description: "" };
 type CategoryFormState = typeof emptyCategoryForm;
@@ -63,9 +64,9 @@ export default function CategoriesPage() {
             resetForm();
           },
           onError: (err) => {
-            const message =
-              err instanceof Error ? err.message : "Failed to save category.";
-            setError(message);
+            setError(
+              getApiErrorMessage(err, "Failed to save category. Please try again.")
+            );
           },
         }
       );
@@ -78,9 +79,9 @@ export default function CategoriesPage() {
         resetForm();
       },
       onError: (err) => {
-        const message =
-          err instanceof Error ? err.message : "Failed to save category.";
-        setError(message);
+        setError(
+          getApiErrorMessage(err, "Failed to save category. Please try again.")
+        );
       },
     });
   };
@@ -109,9 +110,9 @@ export default function CategoriesPage() {
         }
       },
       onError: (err) => {
-        const message =
-          err instanceof Error ? err.message : "Failed to delete category.";
-        setError(message);
+        setError(
+          getApiErrorMessage(err, "Failed to delete category. Please try again.")
+        );
       },
     });
   };
@@ -223,8 +224,10 @@ export default function CategoriesPage() {
         )}
         {categoriesQuery.isError && !error && (
           <div className="state error">
-            {(categoriesQuery.error as Error)?.message ||
-              "Failed to load categories."}
+            {getApiErrorMessage(
+              categoriesQuery.error,
+              "Failed to load categories. Please try again."
+            )}
           </div>
         )}
 
