@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { useOrder } from "../queries";
 import type { Order } from "../../../shared/types/api";
@@ -9,32 +9,12 @@ import {
 } from "../../../shared/utils/orderStatus";
 import StatusBadge from "../../../shared/components/checkout/StatusBadge";
 import InfoBanner from "../../../shared/components/checkout/InfoBanner";
+import OrderSummaryCard from "../../../shared/components/checkout/OrderSummaryCard";
+import { setLastOrderId } from "../../cart/store";
+import { getDisplayOrderId } from "../../../shared/utils/orderId";
 
 function formatMoney(value: number, currency: string) {
   return `${currency} ${value.toFixed(2)}`;
-}
-
-function OrderSummary({ order }: { order: Order }) {
-  return (
-    <div className="order-summary receipt-breakdown">
-      <div className="order-summary-row">
-        <span className="label">Subtotal</span>
-        <strong>{formatMoney(order.subtotalAmount, order.currency)}</strong>
-      </div>
-      <div className="order-summary-row">
-        <span className="label">Discount</span>
-        <strong>-{formatMoney(order.discountAmount, order.currency)}</strong>
-      </div>
-      <div className="order-summary-row">
-        <span className="label">Tax</span>
-        <strong>{formatMoney(order.taxAmount, order.currency)}</strong>
-      </div>
-      <div className="order-summary-row order-total">
-        <span className="label">Total</span>
-        <strong>{formatMoney(order.totalAmount, order.currency)}</strong>
-      </div>
-    </div>
-  );
 }
 
 function OrderSkeleton() {
@@ -81,6 +61,11 @@ export default function OrderStatusPage() {
     return status ? getOrderStatusMessage(status) : "";
   }, [orderQuery.data?.status]);
 
+  useEffect(() => {
+    if (!orderQuery.data?.publicId) return;
+    setLastOrderId(orderQuery.data.publicId);
+  }, [orderQuery.data?.publicId]);
+
   if (!publicId) {
     return <div className="state error">Missing order ID.</div>;
   }
@@ -105,6 +90,7 @@ export default function OrderStatusPage() {
   const showPayNow = order.status === "PendingPayment" && !order.hasCheckoutSession;
   const showHostedCheckoutNotice =
     order.status === "PendingPayment" && order.hasCheckoutSession;
+  const isPaid = order.status === "Paid";
   const paymentSuccess = Boolean(
     (location.state as { paymentSuccess?: boolean } | null)?.paymentSuccess
   );
@@ -119,35 +105,78 @@ export default function OrderStatusPage() {
   return (
     <section className="order-page">
       <div className="page-heading">
-        <h1>Order {order.publicId}</h1>
+        <span className="order-kicker">Order tracking</span>
+        <h1>Order {getDisplayOrderId(order.publicId)}</h1>
         <p className="subtitle">Track payment and fulfillment status.</p>
       </div>
       {paymentSuccess && (
         <div className="state admin-success">Order placed successfully</div>
       )}
       <section className="order-success-header">
-        <div className="order-success-icon" aria-hidden="true">
-          OK
+        <div className={`order-success-icon${isPaid ? " is-paid" : ""}`} aria-hidden="true">
+          {isPaid ? "OK" : "..."}
         </div>
-        <div>
-          <h2>{order.status === "Paid" ? "Payment received" : getOrderStatusLabel(order.status)}</h2>
-          <p className="note">We emailed your receipt and are now preparing the next steps.</p>
+        <div className="order-success-copy">
+          <h2>{isPaid ? "Payment received" : getOrderStatusLabel(order.status)}</h2>
+          <p className="note">
+            {isPaid
+              ? "We emailed your receipt and are now preparing the next steps."
+              : "This page auto-refreshes while your payment status updates."}
+          </p>
         </div>
+        <StatusBadge status={order.status} />
       </section>
       {shouldShowStatusMessage && <div className="state">{statusMessage}</div>}
-      <div className="order-meta-card">
-        <div>
-          <span className="label">Status</span>
-          <StatusBadge status={order.status} />
+      <div className="order-status-grid">
+        <div className="order-status-main">
+          <div className="order-meta-card">
+            <div>
+              <span className="label">Status</span>
+              <StatusBadge status={order.status} />
+            </div>
+            <div>
+              <span className="label">Order ID</span>
+              <strong>{getDisplayOrderId(order.publicId)}</strong>
+            </div>
+            <div>
+              <span className="label">Date</span>
+              <strong>{orderDateText}</strong>
+            </div>
+          </div>
+          <div className="order-items">
+            <h2>Items in your receipt</h2>
+            <ul>
+              {order.items.length === 0 && (
+                <li>
+                  <span className="note">No orders yet.</span>
+                </li>
+              )}
+              {order.items.map((item) => (
+                <li key={`${item.productId}-${item.productName}`}>
+                  <div>
+                    <strong>{item.productName}</strong>
+                    <span className="note">
+                      {item.quantity} × {formatMoney(item.unitPrice, order.currency)}
+                    </span>
+                  </div>
+                  <span>{formatMoney(item.lineTotal, order.currency)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
-        <div>
-          <span className="label">Order ID</span>
-          <strong>{order.publicId}</strong>
-        </div>
-        <div>
-          <span className="label">Date</span>
-          <strong>{orderDateText}</strong>
-        </div>
+        <OrderSummaryCard
+          title="Order summary"
+          rows={[
+            { label: "Subtotal", value: formatMoney(order.subtotalAmount, order.currency) },
+            { label: "Discount", value: `-${formatMoney(order.discountAmount, order.currency)}` },
+            { label: "Tax", value: formatMoney(order.taxAmount, order.currency) },
+          ]}
+          totalLabel="Total"
+          totalValue={formatMoney(order.totalAmount, order.currency)}
+          note={isPaid ? "Payment confirmed" : "Waiting for payment confirmation"}
+          compactOnMobile={false}
+        />
       </div>
       {showPayNow && (
         <div className="checkout-actions">
@@ -182,34 +211,27 @@ export default function OrderStatusPage() {
       )}
       <InfoBanner
         title="What happens next"
-        tone="success"
-        items={[
-          "We validate payment and reserve your items.",
-          "You receive shipment tracking once your order is packed.",
-          "Need help? Reply to your confirmation email anytime.",
-        ]}
+        tone={isPaid ? "success" : "neutral"}
+        items={
+          isPaid
+            ? [
+                "We validate payment and reserve your items.",
+                "You receive shipment tracking once your order is packed.",
+                "Need help? Reply to your confirmation email anytime.",
+              ]
+            : [
+                "Payment status syncs automatically from Stripe webhook updates.",
+                "If pending persists, refresh status and verify the Checkout Session.",
+              ]
+        }
       />
-      <OrderSummary order={order} />
-      <div className="order-items">
-        <h2>Items in your receipt</h2>
-        <ul>
-          {order.items.length === 0 && (
-            <li>
-              <span className="note">No orders yet.</span>
-            </li>
-          )}
-          {order.items.map((item) => (
-            <li key={`${item.productId}-${item.productName}`}>
-              <div>
-                <strong>{item.productName}</strong>
-                <span className="note">
-                  {item.quantity} × {formatMoney(item.unitPrice, order.currency)}
-                </span>
-              </div>
-              <span>{formatMoney(item.lineTotal, order.currency)}</span>
-            </li>
-          ))}
-        </ul>
+      <div className="checkout-actions">
+        <Link className="button ghost" to="/cart">
+          Return to cart
+        </Link>
+        <Link className="button primary" to="/">
+          Continue shopping
+        </Link>
       </div>
     </section>
   );

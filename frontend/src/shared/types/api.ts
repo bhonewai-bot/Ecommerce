@@ -35,6 +35,15 @@ export interface Order {
   items: OrderItem[];
 }
 
+export interface AdminOrderListItem {
+  publicId: string;
+  status: OrderStatus;
+  currency: string;
+  totalAmount: number;
+  customerEmail?: string | null;
+  createdAt: string;
+}
+
 export interface PaymentIntentResponse {
   clientSecret: string;
 }

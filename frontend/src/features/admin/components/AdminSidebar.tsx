@@ -28,6 +28,15 @@ const IconTags = (): ReactElement => (
   </svg>
 );
 
+const IconOrders = (): ReactElement => (
+  <svg className="sidebar-icon" viewBox="0 0 24 24" aria-hidden="true">
+    <rect x="4" y="4" width="16" height="16" rx="2" />
+    <path d="M8 8h8" />
+    <path d="M8 12h8" />
+    <path d="M8 16h5" />
+  </svg>
+);
+
 type AdminSidebarProps = {
   isOpen: boolean;
   onClose: () => void;
@@ -61,6 +70,10 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
         <NavLink to="/admin/categories" className={navClassName}>
           <IconTags />
           Categories
+        </NavLink>
+        <NavLink to="/admin/orders" className={navClassName}>
+          <IconOrders />
+          Orders
         </NavLink>
       </nav>
       <div className="sidebar-footer">

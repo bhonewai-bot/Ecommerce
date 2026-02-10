@@ -2,6 +2,8 @@ import { Link, NavLink, useSearchParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { useCart } from "../../features/cart/useCart";
+import { usePendingOrder } from "../../features/cart/usePendingOrder";
+import { getLastOrderId, LAST_ORDER_EVENT } from "../../features/cart/store";
 
 const navClassName = ({ isActive }: { isActive: boolean }) =>
   isActive ? "nav-link nav-link--active" : "nav-link";
@@ -12,10 +14,28 @@ export default function SiteHeader() {
   const categoryParam = searchParams.get("category");
   const [query, setQuery] = useState("");
   const { count } = useCart();
+  const pendingOrder = usePendingOrder();
+  const [lastOrderId, setLastOrderIdState] = useState<string | null>(() =>
+    getLastOrderId()
+  );
+  const trackedOrderId = pendingOrder?.pendingOrderId ?? lastOrderId;
 
   useEffect(() => {
     setQuery(queryParam);
   }, [queryParam]);
+
+  useEffect(() => {
+    const handleLastOrderUpdate = () => {
+      setLastOrderIdState(getLastOrderId());
+    };
+
+    window.addEventListener("storage", handleLastOrderUpdate);
+    window.addEventListener(LAST_ORDER_EVENT, handleLastOrderUpdate);
+    return () => {
+      window.removeEventListener("storage", handleLastOrderUpdate);
+      window.removeEventListener(LAST_ORDER_EVENT, handleLastOrderUpdate);
+    };
+  }, []);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -57,6 +77,11 @@ export default function SiteHeader() {
           <NavLink to="/cart" className={navClassName}>
             Cart {count > 0 ? `(${count})` : ""}
           </NavLink>
+          {trackedOrderId && (
+            <NavLink to={`/orders/${trackedOrderId}`} className={navClassName}>
+              {pendingOrder?.pendingOrderId ? "Track order" : "Last order"}
+            </NavLink>
+          )}
           <span className="nav-pill">User storefront</span>
         </nav>
       </div>

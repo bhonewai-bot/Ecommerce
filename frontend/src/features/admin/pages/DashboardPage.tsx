@@ -45,6 +45,9 @@ export default function DashboardPage() {
             <Link className="button primary" to="/admin/products">
               Manage products
             </Link>
+            <Link className="button ghost" to="/admin/orders">
+              Manage orders
+            </Link>
             <Link className="button ghost" to="/admin/categories">
               Manage categories
             </Link>

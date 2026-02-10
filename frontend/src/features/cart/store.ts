@@ -27,7 +27,9 @@ type CartState = {
 
 const STORAGE_KEY = "evercart:cart";
 const PENDING_ORDER_KEY = "evercart:pending-order";
+const LAST_ORDER_KEY = "evercart:last-order-id";
 export const PENDING_ORDER_EVENT = "pending-order:updated";
+export const LAST_ORDER_EVENT = "last-order:updated";
 
 function readCart(): CartState {
   if (typeof window === "undefined") {
@@ -84,6 +86,18 @@ function writePendingOrder(pendingOrder: PendingOrder | null) {
   window.dispatchEvent(new Event(PENDING_ORDER_EVENT));
 }
 
+function writeLastOrderId(publicId: string | null) {
+  if (typeof window === "undefined") {
+    return;
+  }
+  if (!publicId) {
+    window.localStorage.removeItem(LAST_ORDER_KEY);
+  } else {
+    window.localStorage.setItem(LAST_ORDER_KEY, publicId);
+  }
+  window.dispatchEvent(new Event(LAST_ORDER_EVENT));
+}
+
 export function getCart(): CartState {
   return readCart();
 }
@@ -94,6 +108,21 @@ export function getPendingOrder(): PendingOrder | null {
 
 export function setPendingOrder(pendingOrder: PendingOrder) {
   writePendingOrder(pendingOrder);
+}
+
+export function getLastOrderId(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  return window.localStorage.getItem(LAST_ORDER_KEY);
+}
+
+export function setLastOrderId(publicId: string) {
+  writeLastOrderId(publicId);
+}
+
+export function clearLastOrderId() {
+  writeLastOrderId(null);
 }
 
 export function updatePendingOrderStatus(status: PendingOrderStatus) {

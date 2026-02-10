@@ -8,6 +8,7 @@ import { getApiErrorMessage } from "../../../shared/utils/errorMessages";
 import { useOrder } from "../../orders/queries";
 import OrderSummaryCard from "../../../shared/components/checkout/OrderSummaryCard";
 import InfoBanner from "../../../shared/components/checkout/InfoBanner";
+import { getDisplayOrderId } from "../../../shared/utils/orderId";
 
 const stripePromise = loadStripe(
   import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || ""
@@ -194,7 +195,7 @@ export default function PayPage() {
               <div className="payment-context-grid">
                 <div>
                   <span className="label">Order ID</span>
-                  <strong>{order.publicId}</strong>
+                  <strong>{getDisplayOrderId(order.publicId)}</strong>
                 </div>
                 <div>
                   <span className="label">Currency</span>
@@ -221,7 +222,7 @@ export default function PayPage() {
           </div>
           <OrderSummaryCard
             rows={[
-              { label: "Order", value: order.publicId },
+              { label: "Order", value: getDisplayOrderId(order.publicId) },
               { label: "Currency", value: order.currency },
             ]}
             totalLabel="Amount due"

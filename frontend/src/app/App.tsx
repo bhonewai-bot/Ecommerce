@@ -12,6 +12,7 @@ import AdminLayout from "../layouts/AdminLayout";
 import DashboardPage from "../features/admin/pages/DashboardPage";
 import ProductsPage from "../features/admin/pages/ProductsPage";
 import CategoriesPage from "../features/admin/pages/CategoriesPage";
+import OrdersPage from "../features/admin/pages/OrdersPage";
 
 export default function App() {
   return (
@@ -30,6 +31,7 @@ export default function App() {
           <Route index element={<DashboardPage />} />
           <Route path="products" element={<ProductsPage />} />
           <Route path="categories" element={<CategoriesPage />} />
+          <Route path="orders" element={<OrdersPage />} />
         </Route>
       </Routes>
     </BrowserRouter>
